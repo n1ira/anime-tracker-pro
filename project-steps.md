@@ -58,15 +58,15 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Ensure that real-time log messages display properly on the UI.
 
 ## Step 6: OpenAI API Key Management Integration
-- [ ] Develop a UI section for users to enter and store their OpenAI API key.
-- [ ] Provide a checkbox option to automatically pull the Windows system environment variable `OPENAI_API_KEY`.
-- [ ] Ensure that the API key is securely stored and utilized in torrent title parsing API calls.
-- [ ] Make the torrent magnet links open automatically like in anime_tracker.py when a new episode is found and marked as downloaded
+- [x] Develop a UI section for users to enter and store their OpenAI API key.
+- [x] Provide a checkbox option to automatically pull the Windows system environment variable `OPENAI_API_KEY`.
+- [x] Ensure that the API key is securely stored and utilized in torrent title parsing API calls.
+- [x] Make the torrent magnet links open automatically like in anime_tracker.py when a new episode is found and marked as downloaded
 
 ### Bug Check (Step 6)
-- [ ] Test the API key input section and verify the key is stored correctly in the database.
-- [ ] Check that selecting the checkbox pulls the API key from the Windows environment variable.
-- [ ] Validate that API calls using the stored API key function correctly without errors.
+- [x] Test the API key input section and verify the key is stored correctly in the database.
+- [x] Check that selecting the checkbox pulls the API key from the Windows environment variable.
+- [x] Validate that API calls using the stored API key function correctly without errors.
 
 ## Step 7: Final Integration, Testing & UI/UX Feedback
 - [ ] Integrate all components: backend API, real-time scanning, and the frontend UI.

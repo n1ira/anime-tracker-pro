@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/ui/header'
+import { Toaster } from '@/components/ui/sonner'
+import { MagnetLinkHandler } from './components/MagnetLinkHandler'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,6 +26,8 @@ export default function RootLayout({
           <main className="flex-1 py-6">
             {children}
           </main>
+          <Toaster />
+          <MagnetLinkHandler />
         </ThemeProvider>
       </body>
     </html>

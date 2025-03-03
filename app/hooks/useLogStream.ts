@@ -23,6 +23,7 @@ export function useLogStream() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isScanActive, setIsScanActive] = useState(false);
 
   // Function to fetch initial logs
   const fetchInitialLogs = useCallback(async () => {
@@ -74,9 +75,27 @@ export function useLogStream() {
     }
   }, [fetchInitialLogs]);
 
+  // Function to check if scanning is active
+  const checkScanningStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/scanner/status');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch scanner status: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      setIsScanActive(data.scanning || false);
+      return data.scanning || false;
+    } catch (err) {
+      console.error('Error checking scanning status:', err);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     // Fetch initial logs
     fetchInitialLogs();
+    // Check scanning status initially
+    checkScanningStatus();
 
     // Set up SSE connection
     let eventSource: EventSource | null = null;
@@ -190,6 +209,11 @@ export function useLogStream() {
     // Initial connection
     connectSSE();
     
+    // Set up polling for scanning status
+    const statusInterval = setInterval(() => {
+      checkScanningStatus();
+    }, 5000); // Check every 5 seconds
+    
     return () => {
       if (eventSource) {
         eventSource.close();
@@ -199,8 +223,20 @@ export function useLogStream() {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
+      
+      clearInterval(statusInterval);
     };
-  }, [fetchInitialLogs]);
+  }, [fetchInitialLogs, checkScanningStatus]);
 
-  return { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs: fetchInitialLogs };
+  return { 
+    logs, 
+    summaries, 
+    isConnected, 
+    error, 
+    isLoading, 
+    clearLogs, 
+    refreshLogs: fetchInitialLogs,
+    isScanActive,
+    checkScanningStatus
+  };
 } 

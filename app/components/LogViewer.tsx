@@ -34,12 +34,11 @@ import {
 import { cn } from "@/lib/utils";
 
 export function LogViewer() {
-  const { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs } = useLogStream();
+  const { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs, isScanActive, checkScanningStatus } = useLogStream();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
-  const [isActiveScan, setIsActiveScan] = useState(false);
   
   // References for scrolling
   const detailsContainerRef = useRef<HTMLDivElement>(null);
@@ -59,52 +58,10 @@ export function LogViewer() {
       ? [...summaries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       : [];
   }, [summaries]);
-  
-  // Check if there's an active scan based on recent logs
-  useEffect(() => {
-    if (!logs || logs.length === 0) {
-      setIsActiveScan(false);
-      return;
-    }
-    
-    // Look at the most recent logs (last 15 seconds) to see if a scan is active
-    const now = new Date();
-    const recentLogs = logs.filter(log => {
-      const logTime = new Date(log.createdAt);
-      return (now.getTime() - logTime.getTime()) < 15000; // 15 seconds
-    });
-    
-    if (recentLogs.length === 0) {
-      setIsActiveScan(false);
-      return;
-    }
-    
-    // Determine if there's an active scan
-    const scanStarted = recentLogs.some(log => 
-      log.message && (
-        log.message.includes('Starting scan') || 
-        log.message.includes('Scanning show') ||
-        log.message.includes('Searching for')
-      )
-    );
-    
-    const scanCompleted = recentLogs.some(log => 
-      log.message && log.message.includes('Scan completed for all shows')
-    );
-    
-    // Also check if we're getting new logs regularly (active scanning)
-    const mostRecentLogTime = new Date(sortedLogs[sortedLogs.length - 1]?.createdAt || 0);
-    const logRecency = now.getTime() - mostRecentLogTime.getTime();
-    const recentActivity = logRecency < 3000; // We've received logs within the last 3 seconds
-    
-    // Set active scan state - active if started and not yet completed
-    // or if we're seeing very recent log activity
-    setIsActiveScan((scanStarted && !scanCompleted) || recentActivity);
-  }, [logs, sortedLogs]);
 
   // Auto-scroll when logs are updated (only if scan is active)
   useEffect(() => {
-    if (logs.length > 0 && isActiveScan) {
+    if (logs.length > 0 && isScanActive) {
       // Scroll to bottom when details tab is active to see newest logs at the end
       if (detailsBottomRef.current && detailsContainerRef.current && activeTab === "details") {
         // Use scrollIntoView on the bottom element within the container
@@ -115,11 +72,11 @@ export function LogViewer() {
         });
       }
     }
-  }, [logs, activeTab, isActiveScan]);
+  }, [logs, activeTab, isScanActive]);
   
   // Auto-scroll summaries only when there are new ones and scan is active
   useEffect(() => {
-    if (summaries.length > 0 && isActiveScan) {
+    if (summaries.length > 0 && isScanActive) {
       // Scroll to top when summary tab is active to see newest summaries at the top
       if (summaryTopRef.current && activeTab === "summary") {
         summaryTopRef.current.scrollIntoView({ 
@@ -129,14 +86,7 @@ export function LogViewer() {
         });
       }
     }
-  }, [summaries, activeTab, isActiveScan]);
-
-  // Scroll to bottom for Details tab when new logs arrive during active scan
-  useEffect(() => {
-    if (sortedLogs.length > 0 && detailsBottomRef.current && isActiveScan) {
-      detailsBottomRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [sortedLogs, isActiveScan]);
+  }, [summaries, activeTab, isScanActive]);
 
   // Function to get the appropriate color for the log level
   const getLevelColor = (level: string) => {
@@ -181,6 +131,7 @@ export function LogViewer() {
 
   const handleRefreshLogs = () => {
     refreshLogs();
+    checkScanningStatus(); // Also check the scanning status when refreshing
   };
 
   // Function to get icon and color for summary status
@@ -226,7 +177,7 @@ export function LogViewer() {
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <CardTitle className="mr-2">Scanner Logs</CardTitle>
-            {isActiveScan && (
+            {isScanActive && (
               <Badge 
                 variant="outline" 
                 className="bg-blue-100 text-blue-800 border-blue-300 px-2 py-0 h-6 animate-pulse"

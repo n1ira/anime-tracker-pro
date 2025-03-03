@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Cog } from 'lucide-react';
 
 export function Header() {
   return (
@@ -14,8 +15,15 @@ export function Header() {
           </Link>
         </div>
         
-        {/* Theme toggle positioned at the right */}
-        <div className="ml-auto">
+        {/* Settings and Theme toggle positioned at the right */}
+        <div className="ml-auto flex items-center space-x-4">
+          <Link 
+            href="/settings" 
+            className="p-2 hover:bg-accent rounded-md transition-colors"
+            title="Settings"
+          >
+            <Cog className="h-5 w-5" />
+          </Link>
           <ThemeToggle />
         </div>
       </div>

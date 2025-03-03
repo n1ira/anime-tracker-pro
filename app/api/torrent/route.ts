@@ -244,17 +244,57 @@ export async function POST(request: Request) {
       return (qualityOrder[b.quality] || 0) - (qualityOrder[a.quality] || 0);
     });
     
+    // If we have results, mark the episode as downloaded
+    if (parsedResults.length > 0) {
+      try {
+        // Check if the episode exists in the database
+        const existingEpisode = await db.select()
+          .from(episodesTable)
+          .where(
+            and(
+              eq(episodesTable.showId, showId),
+              eq(episodesTable.episodeNumber, episode)
+            )
+          );
+        
+        if (existingEpisode.length > 0) {
+          // Update the existing episode
+          await db.update(episodesTable)
+            .set({ 
+              isDownloaded: true, 
+              magnetLink: parsedResults[0].magnetLink,
+              updatedAt: new Date() 
+            })
+            .where(eq(episodesTable.id, existingEpisode[0].id));
+          
+          await logMessage(`Marked episode ${episode} of ${show[0].title} as downloaded`, 'success');
+        } else {
+          // Create a new episode record
+          await db.insert(episodesTable).values({
+            showId,
+            episodeNumber: episode,
+            isDownloaded: true,
+            magnetLink: parsedResults[0].magnetLink,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+          
+          await logMessage(`Created and marked episode ${episode} of ${show[0].title} as downloaded`, 'success');
+        }
+      } catch (error) {
+        console.error('Error marking episode as downloaded:', error);
+        await logMessage(`Error marking episode as downloaded: ${error}`, 'error');
+      }
+    }
+    
     return NextResponse.json({ 
       success: true, 
-      results: parsedResults
+      results: parsedResults,
+      openMagnetLink: parsedResults.length > 0 ? parsedResults[0].magnetLink : null
     });
   } catch (error) {
     console.error('Error searching for torrents:', error);
-    
-    return NextResponse.json({ 
-      success: false, 
-      message: "Error searching for torrents" 
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to search for torrents' }, { status: 500 });
   }
 }
 
