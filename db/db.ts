@@ -13,23 +13,34 @@ const schema = {
   settings: settingsTable 
 }
 
-// Configure connection pool with proper settings
+// Configure connection pool with optimized settings
 const client = postgres(process.env.DATABASE_URL!, {
-  max: 10, // Maximum number of connections
-  idle_timeout: 20, // Close idle connections after 20 seconds
+  max: 8, // Reduced from 10 to 8 connections to prevent connection exhaustion
+  idle_timeout: 15, // Reduced from 20 to 15 seconds to release idle connections faster
   connect_timeout: 10, // Connection timeout after 10 seconds
-  max_lifetime: 60 * 30, // Connection lifetime of 30 minutes
-  debug: false, // Disable debug logging
+  max_lifetime: 60 * 20, // Reduced from 30 to 20 minutes to prevent stale connections
+  debug: process.env.NODE_ENV === 'development', // Only enable debug in development
+  onnotice: () => {}, // Ignore notice messages to reduce console noise
+  onparameter: () => {}, // Ignore parameter messages to reduce console noise
 })
 
 export const db = drizzle(client, { schema })
 
-// Define the shutdown function
+// Define the shutdown function with improved error handling
 const closeDbConnection = async () => {
   console.log('Closing database connections...');
   try {
+    // Set a timeout to force exit if connections don't close gracefully
+    const forceExitTimeout = setTimeout(() => {
+      console.error('Database connections did not close in time, forcing exit');
+      process.exit(1);
+    }, 5000);
+    
+    // Clear the timeout if connections close successfully
     await client.end({ timeout: 5 });
-    console.log('Database connections closed');
+    clearTimeout(forceExitTimeout);
+    
+    console.log('Database connections closed successfully');
     process.exit(0);
   } catch (err) {
     console.error('Error closing database connections:', err);
@@ -37,12 +48,26 @@ const closeDbConnection = async () => {
   }
 };
 
-// Remove any existing SIGINT listeners to prevent duplicates during hot reloading
-// This is important in development with HMR (Hot Module Replacement)
-const listeners = process.listeners('SIGINT');
-listeners.forEach(listener => {
+// Remove any existing SIGINT and SIGTERM listeners to prevent duplicates during hot reloading
+const sigintListeners = process.listeners('SIGINT');
+sigintListeners.forEach(listener => {
   process.removeListener('SIGINT', listener);
 });
 
-// Register our handler
+const sigtermListeners = process.listeners('SIGTERM');
+sigtermListeners.forEach(listener => {
+  process.removeListener('SIGTERM', listener);
+});
+
+// Register our handlers for both SIGINT and SIGTERM
 process.on('SIGINT', closeDbConnection);
+process.on('SIGTERM', closeDbConnection);
+
+// Log basic connection info in development
+if (process.env.NODE_ENV === 'development') {
+  console.log('Database connection configured with:', {
+    max_connections: client.options.max,
+    idle_timeout: client.options.idle_timeout,
+    max_lifetime: client.options.max_lifetime
+  });
+}

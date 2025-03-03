@@ -65,23 +65,14 @@ function cleanupStaleClients() {
     clientConnectTimes.delete(clientRef);
   });
   
+  // Log cleanup results if any clients were removed
   if (removedCount > 0) {
-    console.log(`Cleanup: Removed ${removedCount} stale clients. Active clients: ${clients.size}`);
+    console.log(`Cleaned up ${removedCount} stale clients. Clients before: ${initialClientCount}, after: ${clients.size}`);
   }
   
-  // Only schedule next cleanup if we have clients
+  // Schedule next cleanup if we still have clients
   if (clients.size > 0) {
-    cleanupTimeoutRef = setTimeout(cleanupStaleClients, 10000); // Run every 10 seconds
-  } else if (initialClientCount > 0) {
-    // If we had clients before but now have none, log it
-    console.log('Cleanup: All clients have disconnected. Pausing cleanup cycle.');
-    
-    // Also check if we should stop polling
-    if (pollingTimeoutRef && !isPolling) {
-      clearTimeout(pollingTimeoutRef);
-      pollingTimeoutRef = null;
-      console.log('Stopped polling for logs as all clients have disconnected');
-    }
+    cleanupTimeoutRef = setTimeout(cleanupStaleClients, 30000); // Run cleanup every 30 seconds
   }
 }
 

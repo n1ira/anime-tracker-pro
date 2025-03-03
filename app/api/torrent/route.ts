@@ -311,13 +311,18 @@ async function parseTitle(openai: OpenAI, title: string): Promise<{
     // First try fallback parsing to avoid unnecessary API calls
     const fallbackResult = fallbackParsing(title);
     if (fallbackResult) {
-      await logMessage(`Parsed title "${title}" to: ${JSON.stringify(fallbackResult)}`, 'info');
+      await logMessage(`Parsed title "${title}" using fallback parser: ${JSON.stringify(fallbackResult)}`, 'info');
       return fallbackResult;
+    }
+
+    // Check if OpenAI API key is available
+    if (!openai.apiKey) {
+      throw new Error('OpenAI API key is not configured');
     }
 
     // Set a timeout for the OpenAI request to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('OpenAI request timeout')), 5000);
+      setTimeout(() => reject(new Error('OpenAI request timeout after 8 seconds')), 8000);
     });
 
     // Get all shows from the database for context
@@ -355,35 +360,41 @@ Important parsing rules:
 Show metadata for reference: ${JSON.stringify(knownShows, null, 2)}
 If season markers are missing, derive season based on episode counts.`;
 
-    // Log the system prompt we're sending to OpenAI
-    console.log(`DEBUG: OpenAI system prompt for title "${title}": ${systemPrompt}`);
+    // Create the OpenAI request with retry logic
+    const makeOpenAIRequest = async (retryCount = 0, maxRetries = 2) => {
+      try {
+        return await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Parse this anime torrent title: "${title}"` }
+          ],
+          temperature: 0,
+          max_tokens: 150,
+          response_format: { type: 'json_object' }
+        });
+      } catch (error) {
+        if (retryCount < maxRetries) {
+          console.log(`OpenAI request failed, retrying (${retryCount + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          return makeOpenAIRequest(retryCount + 1, maxRetries);
+        }
+        throw error;
+      }
+    };
 
     // Race the OpenAI request with a timeout
-    const responsePromise = openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Parse this anime torrent title: "${title}"` }
-      ],
-      temperature: 0,
-      max_tokens: 150,
-      response_format: { type: 'json_object' }
-    });
-
+    const responsePromise = makeOpenAIRequest();
     const response = await Promise.race([responsePromise, timeoutPromise]) as any;
-
-    // Log the complete raw response from OpenAI for debugging - backend only
-    console.log(`DEBUG: OpenAI raw response for "${title}": ${JSON.stringify({
-      model: response.model,
-      usage: response.usage,
-      function_call: response.choices[0]?.message?.function_call,
-      finish_reason: response.choices[0]?.finish_reason,
-      content: response.choices[0]?.message?.content,
-    })}`);
 
     // Parse the response
     const content = response.choices[0].message.content;
     const parsed = JSON.parse(content);
+    
+    // Validate the parsed result
+    if (!parsed.show || typeof parsed.season !== 'number') {
+      throw new Error('Invalid response format from OpenAI');
+    }
     
     // Keep this log for the frontend, but make it minimal
     await logMessage(`Parsed title "${title}" to: ${JSON.stringify(parsed)}`, 'info');
@@ -391,7 +402,7 @@ If season markers are missing, derive season based on episode counts.`;
     return parsed;
   } catch (error) {
     console.error('Error parsing title with OpenAI:', error);
-    await logMessage(`Error parsing title with OpenAI: ${title}`, 'error');
+    await logMessage(`Error parsing title with OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     
     // Fall back to regex parsing
     const fallbackResult = fallbackParsing(title);
@@ -400,16 +411,45 @@ If season markers are missing, derive season based on episode counts.`;
       return fallbackResult;
     }
     
-    // If all else fails, return a basic structure
-    return {
-      show: title,
-      season: 1,
-      episode: 1,
-      is_batch: false,
-      quality: '1080p',
-      batch_episodes: []
-    };
+    // If all else fails, return a basic structure with best-effort parsing
+    const basicParsed = basicTitleParsing(title);
+    await logMessage(`Basic parsed title "${title}" to: ${JSON.stringify(basicParsed)}`, 'info');
+    return basicParsed;
   }
+}
+
+// Basic title parsing as a last resort
+function basicTitleParsing(title: string) {
+  const lowerTitle = title.toLowerCase();
+  let season = 1;
+  let episode = 1;
+  let quality = '1080p';
+  
+  // Try to extract season
+  const seasonMatch = lowerTitle.match(/s(\d+)|season\s*(\d+)/i);
+  if (seasonMatch) {
+    season = parseInt(seasonMatch[1] || seasonMatch[2], 10);
+  }
+  
+  // Try to extract episode
+  const episodeMatch = lowerTitle.match(/e(\d+)|episode\s*(\d+)|\s-\s(\d+)|\s(\d{2,3})\s/i);
+  if (episodeMatch) {
+    episode = parseInt(episodeMatch[1] || episodeMatch[2] || episodeMatch[3] || episodeMatch[4], 10);
+  }
+  
+  // Try to extract quality
+  if (lowerTitle.includes('1080p')) quality = '1080p';
+  else if (lowerTitle.includes('720p')) quality = '720p';
+  else if (lowerTitle.includes('480p')) quality = '480p';
+  
+  return {
+    show: title.split(/\s+[Ss]\d+|Episode|\[|\(|1080p|720p|480p/i)[0].trim(),
+    season,
+    episode,
+    is_batch: false,
+    quality,
+    batch_episodes: []
+  };
 }
 
 // Fallback parsing for common patterns in anime titles

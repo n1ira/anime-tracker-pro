@@ -69,7 +69,8 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Validate that API calls using the stored API key function correctly without errors.
 
 ## Step 7: Final Integration, Testing & UI/UX Feedback
-- [ ] Conduct thorough end-to-end testing of all features.
+- [x] Conduct thorough end-to-end testing of all features.
+- [x] Check for bad practice in the whole project. Make sure the code is well made and well structured. Refactor/fix/restructure/remove unneeded files or code/remove hardcoded code
 
 ### Bug Check (Step 7)
-- [ ] Confirm overall system stability and correct synchronization between frontend and backend components.
+- [x] Confirm overall system stability and correct synchronization between frontend and backend components.
