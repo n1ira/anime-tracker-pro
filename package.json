@@ -11,6 +11,8 @@
     "db:migrate": "npx drizzle-kit migrate"
   },
   "dependencies": {
+    "@radix-ui/react-scroll-area": "^1.2.3",
+    "@radix-ui/react-slot": "^1.1.2",
     "@types/pg": "^8.11.11",
     "axios": "^1.8.1",
     "cheerio": "^1.0.0",

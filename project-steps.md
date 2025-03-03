@@ -44,12 +44,12 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Use CMD-based API calls to simulate and verify real-time log updates.
 
 ## Step 5: Frontend UI Development for Shows & Episodes Management
-- [ ] Develop a modern, responsive UI using shadcn components with Next.js, TypeScript, and Tailwind CSS.
-- [ ] Create interfaces for:
-  - [ ] Adding and editing anime shows.
-  - [ ] Displaying a list of tracked shows with a loading wheel indicator during scans.
-  - [ ] Viewing and toggling the status (Downloaded/Needed) of episodes for a selected show.
-  - [ ] Displaying real-time log updates.
+- [x] Develop a modern, responsive UI using shadcn components with Next.js, TypeScript, and Tailwind CSS.
+- [x] Create interfaces for:
+  - [x] Adding and editing anime shows.
+  - [x] Displaying a list of tracked shows with a loading wheel indicator during scans.
+  - [x] Viewing and toggling the status (Downloaded/Needed) of episodes for a selected show.
+  - [x] Displaying real-time log updates.
 
 ### Bug Check (Step 5)
 - [ ] Verify that the UI loads correctly and is responsive on various devices.

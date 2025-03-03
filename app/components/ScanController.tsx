@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { useScanState } from '../hooks/useScanState';
 import { Button } from '@/components/ui/button';

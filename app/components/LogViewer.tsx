@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { useLogStream } from '../hooks/useLogStream';
 import { ScrollArea } from '@/components/ui/scroll-area';
