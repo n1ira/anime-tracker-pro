@@ -11,6 +11,11 @@ export async function GET(
     const showId = parseInt(params.id);
     const episodeId = parseInt(params.episodeId);
     
+    // Validate that both IDs are valid numbers
+    if (isNaN(showId) || isNaN(episodeId)) {
+      return NextResponse.json({ error: 'Invalid show ID or episode ID' }, { status: 400 });
+    }
+    
     const episode = await db.select()
       .from(episodesTable)
       .where(

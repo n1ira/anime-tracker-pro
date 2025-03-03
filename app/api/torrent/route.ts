@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { calculateAbsoluteEpisode } from '@/app/utils/episodeCalculator';
 
 // Nyaa.si URL for anime torrents
 const NYAA_URL = 'https://nyaa.si/';
@@ -41,15 +42,59 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Show not found" }, { status: 404 });
     }
     
+    // Get episodes per season for this show
+    const episodesPerSeason = show[0].episodesPerSeason || '12';
+    
+    // Parse the episodes per season (could be a number or JSON array)
+    let parsedEpisodesPerSeason;
+    try {
+      parsedEpisodesPerSeason = JSON.parse(episodesPerSeason);
+    } catch (e) {
+      // If it's not valid JSON, assume it's a number
+      parsedEpisodesPerSeason = parseInt(episodesPerSeason);
+    }
+    
+    // Create episodesPerSeasonData for our calculator
+    const episodesPerSeasonData = {
+      [show[0].title]: {
+        episodes_per_season: parsedEpisodesPerSeason
+      }
+    };
+    
+    // Calculate absolute episode for better tracking
+    const absoluteEpisode = calculateAbsoluteEpisode(
+      show[0].title, 
+      season, 
+      episode,
+      episodesPerSeasonData
+    );
+    
     // Log the search
-    await logMessage(`Searching for ${show[0].title} S${season}E${episode}`, 'info');
+    await logMessage(`Searching for ${show[0].title} S${season}E${episode} (Absolute Episode ${absoluteEpisode})`, 'info');
     
     // Try different search queries
     const searchQueries = [
       `${show[0].title} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`,
       `${show[0].title} S${season} - ${episode.toString().padStart(2, '0')}`,
-      `${show[0].title} ${episode}` // Simple query with just the episode number
+      `${show[0].title} ${episode}`, // Simple query with just the episode number
+      `${show[0].title} ${absoluteEpisode}` // Search with absolute episode number as well
     ];
+    
+    // Add alternateNames to search queries if available
+    try {
+      const alternateNames = JSON.parse(show[0].alternateNames || '[]');
+      if (Array.isArray(alternateNames) && alternateNames.length > 0) {
+        // Add alternate name queries
+        for (const altName of alternateNames) {
+          if (altName && typeof altName === 'string') {
+            searchQueries.push(`${altName} S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`);
+            searchQueries.push(`${altName} ${absoluteEpisode}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing alternateNames:', e);
+    }
     
     let results: Array<{ title: string; magnetLink: string }> = [];
     
@@ -131,7 +176,7 @@ export async function POST(request: Request) {
         const parsed = await parseTitle(openai, result.title);
         
         // Check if this is a valid episode
-        if (isValidEpisode(show[0].title, season, episode, parsed)) {
+        if (await isValidEpisode(show[0].title, season, episode, parsed)) {
           // Determine quality with a safe default
           let quality = 'unknown';
           if (parsed.quality) {
@@ -223,13 +268,32 @@ async function parseTitle(openai: OpenAI, title: string): Promise<{
   batch_episodes: number[];
 }> {
   try {
+    // First try fallback parsing to avoid unnecessary API calls
+    const fallbackResult = fallbackParsing(title);
+    if (fallbackResult) {
+      await logMessage(`Parsed title "${title}" to: ${JSON.stringify(fallbackResult)}`, 'info');
+      return fallbackResult;
+    }
+
+    // Set a timeout for the OpenAI request to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('OpenAI request timeout')), 5000);
+    });
+
     // Get all shows from the database for context
     const shows = await db.select().from(showsTable);
     const knownShows = shows.reduce((acc: any, show) => {
+      // Parse episodes per season
+      let parsedEpisodesPerSeason;
+      try {
+        parsedEpisodesPerSeason = JSON.parse(show.episodesPerSeason || '12');
+      } catch (e) {
+        parsedEpisodesPerSeason = parseInt(show.episodesPerSeason || '12');
+      }
+      
       acc[show.title] = {
-        // Use default values since these fields don't exist in the schema
-        quality: "1080p", // Default quality
-        episodes_per_season: 12 // Default episodes per season
+        quality: show.quality || "1080p",
+        episodes_per_season: parsedEpisodesPerSeason
       };
       return acc;
     }, {});
@@ -241,72 +305,70 @@ async function parseTitle(openai: OpenAI, title: string): Promise<{
 - is_batch: boolean
 - quality: string
 - batch_episodes: array of episode numbers (if batch)
-Rules for ${JSON.stringify(knownShows, null, 2)}
+
+Important parsing rules:
+1. Pay careful attention to season markers in titles (S1, S2, Season 1, Season 2, etc.)
+2. When a title contains "S2 - 06", this means season 2, episode 6
+3. Look for season information in parentheses or brackets
+4. If a show name contains "S2" or similar, make sure to set season=2
+
+Show metadata for reference: ${JSON.stringify(knownShows, null, 2)}
 If season markers are missing, derive season based on episode counts.`;
 
-    const response = await openai.chat.completions.create({
+    // Log the system prompt we're sending to OpenAI
+    console.log(`DEBUG: OpenAI system prompt for title "${title}": ${systemPrompt}`);
+
+    // Race the OpenAI request with a timeout
+    const responsePromise = openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: title }
+        { role: 'user', content: `Parse this anime torrent title: "${title}"` }
       ],
-      temperature: 0.1
+      temperature: 0,
+      max_tokens: 150,
+      response_format: { type: 'json_object' }
     });
 
-    let rawResponse = response.choices[0].message.content || '{}';
-    
-    // Remove markdown formatting if present
-    if (rawResponse.startsWith('```json')) {
-      const parts = rawResponse.split('```json');
-      if (parts.length > 1) {
-        rawResponse = parts[1];
-        const closingParts = rawResponse.split('```');
-        if (closingParts.length > 1) {
-          rawResponse = closingParts[0];
-        }
-      }
-      rawResponse = rawResponse.trim();
-    }
+    const response = await Promise.race([responsePromise, timeoutPromise]) as any;
 
-    try {
-      const result = JSON.parse(rawResponse);
-      
-      // Ensure season is a number
-      result.season = parseInt(result.season || 1, 10);
-      
-      // Ensure episode is a number if present
-      if (result.episode !== null && result.episode !== undefined) {
-        result.episode = parseInt(result.episode, 10);
-      }
-      
-      // Ensure quality is a string
-      result.quality = result.quality || 'unknown';
-      
-      // Ensure batch_episodes is an array of numbers
-      result.batch_episodes = Array.isArray(result.batch_episodes) 
-        ? result.batch_episodes.map((ep: any) => parseInt(ep, 10)) 
-        : [];
-      
-      // Ensure is_batch is a boolean
-      result.is_batch = !!result.is_batch;
-      
-      // Ensure show is a string and normalize it
-      result.show = result.show || '';
-      
-      await logMessage(`Parsed title "${title}" to: ${JSON.stringify(result)}`, 'info');
-      
-      return result;
-    } catch (error) {
-      await logMessage(`Error parsing JSON from OpenAI response for title "${title}": ${error}`, 'error');
-      await logMessage(`Raw response: ${rawResponse}`, 'error');
-      
-      // Fallback parsing for common patterns
-      return fallbackParsing(title);
-    }
+    // Log the complete raw response from OpenAI for debugging - backend only
+    console.log(`DEBUG: OpenAI raw response for "${title}": ${JSON.stringify({
+      model: response.model,
+      usage: response.usage,
+      function_call: response.choices[0]?.message?.function_call,
+      finish_reason: response.choices[0]?.finish_reason,
+      content: response.choices[0]?.message?.content,
+    })}`);
+
+    // Parse the response
+    const content = response.choices[0].message.content;
+    const parsed = JSON.parse(content);
+    
+    // Keep this log for the frontend, but make it minimal
+    await logMessage(`Parsed title "${title}" to: ${JSON.stringify(parsed)}`, 'info');
+    
+    return parsed;
   } catch (error) {
-    console.error('Error calling OpenAI API:', error);
-    await logMessage(`Error calling OpenAI API: ${error}`, 'error');
-    return fallbackParsing(title);
+    console.error('Error parsing title with OpenAI:', error);
+    await logMessage(`Error parsing title with OpenAI: ${title}`, 'error');
+    
+    // Fall back to regex parsing
+    const fallbackResult = fallbackParsing(title);
+    if (fallbackResult) {
+      await logMessage(`Fallback parsed title "${title}" to: ${JSON.stringify(fallbackResult)}`, 'info');
+      return fallbackResult;
+    }
+    
+    // If all else fails, return a basic structure
+    return {
+      show: title,
+      season: 1,
+      episode: 1,
+      is_batch: false,
+      quality: '1080p',
+      batch_episodes: []
+    };
   }
 }
 
@@ -319,6 +381,7 @@ function fallbackParsing(title: string) {
     is_batch: boolean;
     quality: string;
     batch_episodes: number[];
+    absoluteEpisode?: number;
   } = {
     show: '',
     season: 1,
@@ -337,7 +400,22 @@ function fallbackParsing(title: string) {
     result.quality = '480p';
   }
   
-  // Extract season and episode
+  // First, check for standalone season markers (before checking episodes)
+  // This handles patterns like "Title S2 - 09"
+  const seasonPatterns = [
+    /\bS(\d+)\b(?!\d*E)/i,   // S2 (not followed by E)
+    /\bSeason\s*(\d+)\b/i,   // Season 2
+  ];
+  
+  for (const pattern of seasonPatterns) {
+    const match = title.match(pattern);
+    if (match && match[1]) {
+      result.season = parseInt(match[1], 10);
+      break;
+    }
+  }
+  
+  // Extract season and episode together
   const seasonEpisodePatterns = [
     /S(\d+)E(\d+)/i,                // S01E01
     /Season\s*(\d+)\s*Episode\s*(\d+)/i, // Season 1 Episode 1
@@ -353,17 +431,19 @@ function fallbackParsing(title: string) {
         // Pattern with both season and episode
         result.season = parseInt(match[1], 10);
         result.episode = parseInt(match[2], 10);
+        break;
       } else if (match.length === 2) {
-        // Pattern with just episode
+        // Pattern with just episode number
+        // Don't override season if already set by standalone season pattern
         result.episode = parseInt(match[1], 10);
+        break;
       }
-      break;
     }
   }
   
   // Extract show name - take everything before the season/episode markers
   const showNamePatterns = [
-    /^(.*?)(?:S\d+E\d+|\sE\d+|\s-\s\d+|\sSeason\s*\d+)/i
+    /^(.*?)(?:S\d+\b|\s+S\d+\s+|\sE\d+|\s-\s\d+|\sSeason\s*\d+)/i
   ];
   
   for (const pattern of showNamePatterns) {
@@ -385,7 +465,12 @@ function fallbackParsing(title: string) {
 }
 
 // Function to check if a parsed title matches the target episode
-function isValidEpisode(showTitle: string, targetSeason: number, targetEpisode: number, parsed: any): boolean {
+async function isValidEpisode(
+  showTitle: string, 
+  targetSeason: number, 
+  targetEpisode: number, 
+  parsed: any
+): Promise<boolean> {
   // Check if the show name matches
   const normalizedShowTitle = normalizeShowName(showTitle);
   const normalizedParsedShow = normalizeShowName(parsed.show || '');
@@ -394,18 +479,134 @@ function isValidEpisode(showTitle: string, targetSeason: number, targetEpisode: 
   if (normalizedShowTitle !== normalizedParsedShow && 
       !normalizedShowTitle.includes(normalizedParsedShow) && 
       !normalizedParsedShow.includes(normalizedShowTitle)) {
+    console.log(`DEBUG: Episode match failed: Show name mismatch for "${showTitle}" vs "${parsed.show}"`);
     return false;
   }
   
-  // Check if the season and episode match
-  if (parsed.is_batch) {
-    // For batch releases, check if the target episode is in the batch
-    const batchEpisodes = parsed.batch_episodes || [];
-    return parsed.season === targetSeason && batchEpisodes.includes(targetEpisode);
-  } else {
-    // For single episode releases, check exact match
-    // If season is not specified in the parsed result, assume it's season 1
-    const parsedSeason = parsed.season || 1;
-    return parsedSeason === targetSeason && parsed.episode === targetEpisode;
+  // Get show from database to get episodesPerSeason
+  const show = await db.select().from(showsTable).where(eq(showsTable.title, showTitle)).limit(1);
+  
+  if (show.length === 0) {
+    // Show not found, fall back to direct matching
+    console.log(`DEBUG: Show not found in database, falling back to direct matching for "${showTitle}"`);
+    return directEpisodeMatch(targetSeason, targetEpisode, parsed);
   }
+  
+  // Get episodes per season data
+  let episodesPerSeason;
+  try {
+    episodesPerSeason = JSON.parse(show[0].episodesPerSeason || '12');
+    console.log(`DEBUG: Parsed episodesPerSeason for "${showTitle}": ${JSON.stringify(episodesPerSeason)}`);
+  } catch (e) {
+    // If not valid JSON, assume it's a number
+    episodesPerSeason = parseInt(show[0].episodesPerSeason || '12');
+    console.log(`DEBUG: Using fixed episodesPerSeason for "${showTitle}": ${episodesPerSeason}`);
+  }
+  
+  // Create the knownShows data for the calculator
+  const knownShows = {
+    [showTitle]: {
+      episodes_per_season: episodesPerSeason
+    }
+  };
+  
+  // Calculate the target absolute episode
+  const targetAbsoluteEpisode = calculateAbsoluteEpisode(
+    showTitle,
+    targetSeason,
+    targetEpisode,
+    knownShows
+  );
+  
+  // Calculate the parsed absolute episode if we have season and episode
+  if (parsed.season && parsed.episode) {
+    const parsedAbsoluteEpisode = calculateAbsoluteEpisode(
+      showTitle,
+      parsed.season,
+      parsed.episode,
+      knownShows
+    );
+    
+    // Log for debugging - keep minimal for frontend
+    await logMessage(`Comparing episodes for ${showTitle}: Target S${targetSeason}E${targetEpisode} (Absolute: ${targetAbsoluteEpisode}) vs Parsed S${parsed.season}E${parsed.episode} (Absolute: ${parsedAbsoluteEpisode})`, 'info');
+    
+    // Detailed debug log for backend only
+    console.log(`DEBUG: Episode comparison details - episodesPerSeason=${JSON.stringify(episodesPerSeason)}, targetSeason=${targetSeason}, targetEpisode=${targetEpisode}, parsedSeason=${parsed.season}, parsedEpisode=${parsed.episode}`);
+    
+    // Check if the absolute episodes match
+    if (parsedAbsoluteEpisode === targetAbsoluteEpisode) {
+      console.log(`DEBUG: MATCH FOUND! Absolute episodes match: ${parsedAbsoluteEpisode} === ${targetAbsoluteEpisode}`);
+      return true;
+    } else {
+      // Log why the match failed - backend only
+      console.log(`DEBUG: Episode match failed: Absolute episodes don't match: ${parsedAbsoluteEpisode} !== ${targetAbsoluteEpisode}`);
+    }
+  } else {
+    console.log(`DEBUG: Episode match evaluation skipped: Missing season or episode data in parsed result`);
+  }
+  
+  // If batch, check if target episode is in the batch
+  if (parsed.is_batch && parsed.batch_episodes && parsed.batch_episodes.length > 0) {
+    console.log(`DEBUG: Checking batch episodes: ${JSON.stringify(parsed.batch_episodes)}`);
+    
+    // Check if any of the batch episodes match our target when converted to absolute
+    for (const batchEpisode of parsed.batch_episodes) {
+      const batchAbsoluteEpisode = calculateAbsoluteEpisode(
+        showTitle,
+        parsed.season || 1,
+        batchEpisode,
+        knownShows
+      );
+      
+      console.log(`DEBUG: Checking batch episode match: Target absolute ${targetAbsoluteEpisode} vs Batch absolute ${batchAbsoluteEpisode}`);
+      
+      if (batchAbsoluteEpisode === targetAbsoluteEpisode) {
+        console.log(`DEBUG: MATCH FOUND in batch! Absolute episodes match: ${batchAbsoluteEpisode} === ${targetAbsoluteEpisode}`);
+        return true;
+      }
+    }
+    
+    console.log(`DEBUG: No matching episodes found in batch`);
+  }
+  
+  // Fall back to direct matching
+  console.log(`DEBUG: Falling back to direct matching for ${showTitle}`);
+  return directEpisodeMatch(targetSeason, targetEpisode, parsed);
+}
+
+// Helper function for direct episode matching
+async function directEpisodeMatch(targetSeason: number, targetEpisode: number, parsed: any): Promise<boolean> {
+  // For single episode releases, check exact match
+  // If season is not specified in the parsed result, assume it's season 1
+  const parsedSeason = parsed.season || 1;
+  const parsedEpisode = parsed.episode || 0;
+  
+  // Only log this info on the backend
+  console.log(`DEBUG: Direct episode matching: Target S${targetSeason}E${targetEpisode} vs Parsed S${parsedSeason}E${parsedEpisode}`);
+  
+  // First try exact match by season and episode
+  let isMatch = parsedSeason === targetSeason && parsedEpisode === targetEpisode;
+  
+  // If no match and we're looking at a higher season, try to match on show patterns
+  if (!isMatch && targetSeason > 1 && parsed.show) {
+    // Check if the title contains a season marker matching our target
+    const seasonMarker = `s${targetSeason}`;
+    const hasMatchingSeasonInTitle = parsed.show.toLowerCase().includes(seasonMarker);
+    
+    // If the episode numbers match and the title suggests it's our target season
+    if (hasMatchingSeasonInTitle && parsedEpisode === targetEpisode) {
+      console.log(`DEBUG: Title contains S${targetSeason} and matching episode number ${targetEpisode}`);
+      isMatch = true;
+    }
+  }
+  
+  if (isMatch) {
+    // Log success but keep it simple for frontend
+    await logMessage(`Direct match found for S${targetSeason}E${targetEpisode}`, 'success');
+  } else {
+    // Keep this log minimal for frontend
+    await logMessage(`Direct match failed: S${targetSeason}E${targetEpisode} !== S${parsedSeason}E${parsedEpisode}`, 'info');
+  }
+  
+  return isMatch;
 } 

@@ -3,14 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save, ArrowLeft } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Show {
   id?: number;
   title: string;
-  currentEpisode: number;
-  totalEpisodes: number;
+  alternateNames: string; // JSON string of alternate names
+  episodesPerSeason: string; // Number or JSON array of numbers
+  startSeason: number;
+  startEpisode: number;
+  endSeason: number;
+  endEpisode: number;
+  quality: string;
   status: string;
 }
 
@@ -22,13 +27,21 @@ interface ShowFormProps {
 export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   const [show, setShow] = useState<Show>({
     title: '',
-    currentEpisode: 0,
-    totalEpisodes: 0,
+    alternateNames: '[]',
+    episodesPerSeason: '12',
+    startSeason: 1,
+    startEpisode: 1,
+    endSeason: 1,
+    endEpisode: 1,
+    quality: '1080p',
     status: 'ongoing',
   });
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(isEditing);
   const [error, setError] = useState<string | null>(null);
+  const [newAlternateName, setNewAlternateName] = useState('');
+  const [alternateNames, setAlternateNames] = useState<string[]>([]);
+  const [isEpisodesPerSeasonArray, setIsEpisodesPerSeasonArray] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -37,19 +50,57 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     }
   }, [isEditing, showId]);
 
+  useEffect(() => {
+    // Parse alternateNames from JSON string when show changes
+    try {
+      const names = JSON.parse(show.alternateNames);
+      setAlternateNames(Array.isArray(names) ? names : []);
+    } catch (e) {
+      setAlternateNames([]);
+    }
+  }, [show.alternateNames]);
+
   const fetchShow = async () => {
     setFetchLoading(true);
-    setError(null);
     try {
       const response = await fetch(`/api/shows/${showId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch show');
       }
+      
       const data = await response.json();
+      
+      // Handle episodesPerSeason format
+      if (data.episodesPerSeason) {
+        try {
+          const parsedEpisodes = JSON.parse(data.episodesPerSeason);
+          // If it's an array, set the array mode
+          if (Array.isArray(parsedEpisodes)) {
+            setIsEpisodesPerSeasonArray(true);
+            data.episodesPerSeason = parsedEpisodes.join(',');
+          } else {
+            setIsEpisodesPerSeasonArray(false);
+          }
+        } catch (e) {
+          // Not JSON, assume it's a single number as string
+          setIsEpisodesPerSeasonArray(false);
+        }
+      }
+      
+      // Parse alternate names
+      if (data.alternateNames) {
+        try {
+          const parsed = JSON.parse(data.alternateNames);
+          setAlternateNames(Array.isArray(parsed) ? parsed : []);
+        } catch (e) {
+          setAlternateNames([]);
+        }
+      }
+      
       setShow(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching show:', err);
+    } catch (error) {
+      console.error('Error fetching show:', error);
+      setError('Failed to fetch show. Please try again.');
     } finally {
       setFetchLoading(false);
     }
@@ -57,11 +108,46 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    
+    // Handle episodesPerSeason field specially
+    if (name === 'episodesPerSeason') {
+      if (isEpisodesPerSeasonArray) {
+        // For array type, just store the raw string (will be processed on submit)
+        setShow(prev => ({ ...prev, [name]: value }));
+      } else {
+        // For single value type, store as a number string
+        const numValue = parseInt(value) || 12;
+        setShow(prev => ({ ...prev, [name]: numValue.toString() }));
+      }
+    } else {
+      // Handle other fields normally
+      setShow(prev => ({
+        ...prev,
+        [name]: ['startSeason', 'startEpisode', 'endSeason', 'endEpisode'].includes(name)
+          ? parseInt(value) || 0 
+          : value,
+      }));
+    }
+  };
+
+  const addAlternateName = () => {
+    if (newAlternateName.trim() && !alternateNames.includes(newAlternateName.trim())) {
+      const updatedNames = [...alternateNames, newAlternateName.trim()];
+      setAlternateNames(updatedNames);
+      setShow(prev => ({
+        ...prev,
+        alternateNames: JSON.stringify(updatedNames)
+      }));
+      setNewAlternateName('');
+    }
+  };
+
+  const removeAlternateName = (index: number) => {
+    const updatedNames = alternateNames.filter((_, i) => i !== index);
+    setAlternateNames(updatedNames);
     setShow(prev => ({
       ...prev,
-      [name]: name === 'currentEpisode' || name === 'totalEpisodes' 
-        ? parseInt(value) || 0 
-        : value,
+      alternateNames: JSON.stringify(updatedNames)
     }));
   };
 
@@ -71,6 +157,26 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     setError(null);
 
     try {
+      // Format episodesPerSeason based on input type
+      let formattedShow = { ...show };
+      
+      if (isEpisodesPerSeasonArray) {
+        // Parse comma-separated values into an array
+        const episodesArray = show.episodesPerSeason
+          .split(',')
+          .map(val => parseInt(val.trim()))
+          .filter(val => !isNaN(val));
+          
+        if (episodesArray.length > 0) {
+          // Store as JSON string
+          formattedShow.episodesPerSeason = JSON.stringify(episodesArray);
+        } else {
+          // Default to 12 if parsing fails
+          formattedShow.episodesPerSeason = '12';
+        }
+      }
+      // If it's a single value, it's already in the correct format as a string
+
       const url = isEditing ? `/api/shows/${showId}` : '/api/shows';
       const method = isEditing ? 'PUT' : 'POST';
 
@@ -79,7 +185,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(show),
+        body: JSON.stringify(formattedShow),
       });
 
       if (!response.ok) {
@@ -87,7 +193,14 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       }
 
       const data = await response.json();
-      router.push(isEditing ? `/shows/${data.id}` : '/');
+      
+      // For editing, use the existing showId for redirection
+      // For creating, use the ID from the response
+      if (isEditing && showId) {
+        router.push(`/shows/${showId}`);
+      } else {
+        router.push(data.id ? `/shows/${data.id}` : '/');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error(`Error ${isEditing ? 'updating' : 'creating'} show:`, err);
@@ -138,36 +251,175 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
               />
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="currentEpisode" className="text-sm font-medium">
-                  Current Episode
-                </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Alternate Names
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {alternateNames.map((name, index) => (
+                  <div key={index} className="flex items-center bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
+                    <span className="mr-1">{name}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeAlternateName(index)}
+                      className="text-secondary-foreground/70 hover:text-secondary-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex">
                 <input
-                  id="currentEpisode"
-                  name="currentEpisode"
-                  type="number"
-                  min="0"
-                  value={show.currentEpisode}
-                  onChange={handleChange}
-                  className="w-full p-2 rounded-md border border-input bg-background"
+                  type="text"
+                  value={newAlternateName}
+                  onChange={(e) => setNewAlternateName(e.target.value)}
+                  className="flex-1 p-2 rounded-l-md border border-input bg-background"
+                  placeholder="Add alternate name"
                 />
+                <Button 
+                  type="button" 
+                  onClick={addAlternateName}
+                  className="rounded-l-none"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium">Episodes Per Season</label>
+                <div className="flex items-center space-x-2">
+                  <label className="text-xs">
+                    <input
+                      type="radio"
+                      checked={!isEpisodesPerSeasonArray}
+                      onChange={() => setIsEpisodesPerSeasonArray(false)}
+                      className="mr-1"
+                    />
+                    Single value
+                  </label>
+                  <label className="text-xs">
+                    <input
+                      type="radio"
+                      checked={isEpisodesPerSeasonArray}
+                      onChange={() => setIsEpisodesPerSeasonArray(true)}
+                      className="mr-1"
+                    />
+                    Per season
+                  </label>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <label htmlFor="totalEpisodes" className="text-sm font-medium">
-                  Total Episodes
-                </label>
+              {!isEpisodesPerSeasonArray ? (
                 <input
-                  id="totalEpisodes"
-                  name="totalEpisodes"
+                  id="episodesPerSeason"
+                  name="episodesPerSeason"
                   type="number"
-                  min="0"
-                  value={show.totalEpisodes}
+                  min="1"
+                  value={show.episodesPerSeason}
                   onChange={handleChange}
                   className="w-full p-2 rounded-md border border-input bg-background"
+                  placeholder="Default: 12"
                 />
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    id="episodesPerSeason"
+                    name="episodesPerSeason"
+                    type="text"
+                    value={show.episodesPerSeason}
+                    onChange={handleChange}
+                    className="w-full p-2 rounded-md border border-input bg-background"
+                    placeholder="e.g. 12,13,24"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter comma-separated values, one for each season (e.g., &ldquo;12,13,24&rdquo;)
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Episode Range
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label htmlFor="startSeason" className="text-xs text-muted-foreground">
+                    Start Season
+                  </label>
+                  <input
+                    id="startSeason"
+                    name="startSeason"
+                    type="number"
+                    min="1"
+                    value={show.startSeason}
+                    onChange={handleChange}
+                    className="w-full p-2 rounded-md border border-input bg-background"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="startEpisode" className="text-xs text-muted-foreground">
+                    Start Episode
+                  </label>
+                  <input
+                    id="startEpisode"
+                    name="startEpisode"
+                    type="number"
+                    min="1"
+                    value={show.startEpisode}
+                    onChange={handleChange}
+                    className="w-full p-2 rounded-md border border-input bg-background"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="endSeason" className="text-xs text-muted-foreground">
+                    End Season
+                  </label>
+                  <input
+                    id="endSeason"
+                    name="endSeason"
+                    type="number"
+                    min="1"
+                    value={show.endSeason}
+                    onChange={handleChange}
+                    className="w-full p-2 rounded-md border border-input bg-background"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="endEpisode" className="text-xs text-muted-foreground">
+                    End Episode
+                  </label>
+                  <input
+                    id="endEpisode"
+                    name="endEpisode"
+                    type="number"
+                    min="1"
+                    value={show.endEpisode}
+                    onChange={handleChange}
+                    className="w-full p-2 rounded-md border border-input bg-background"
+                  />
+                </div>
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="quality" className="text-sm font-medium">
+                Quality
+              </label>
+              <select
+                id="quality"
+                name="quality"
+                value={show.quality}
+                onChange={handleChange}
+                className="w-full p-2 rounded-md border border-input bg-background"
+              >
+                <option value="1080p">1080p</option>
+                <option value="720p">720p</option>
+                <option value="480p">480p</option>
+              </select>
             </div>
             
             <div className="space-y-2">
@@ -187,7 +439,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
               </select>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-end">
+          <CardFooter>
             <Button type="submit" disabled={loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
