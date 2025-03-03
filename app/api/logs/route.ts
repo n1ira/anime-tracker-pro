@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { logsTable } from '@/db/schema';
 import { desc } from 'drizzle-orm';
+import { sendSSEMessage } from './sse/route';
 
 export async function GET() {
   try {
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
       level,
       message,
     }).returning();
+    
+    // Send the new log to all connected clients
+    sendSSEMessage(newLog[0]);
     
     return NextResponse.json(newLog[0]);
   } catch (error) {

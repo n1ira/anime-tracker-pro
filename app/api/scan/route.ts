@@ -3,6 +3,28 @@ import { db } from '@/db/db';
 import { scanStateTable, showsTable, episodesTable, logsTable } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 
+// Helper function to create a log and return it
+async function createLog(message: string, level: string = 'info') {
+  const newLog = await db.insert(logsTable).values({
+    message,
+    level,
+    createdAt: new Date(),
+  }).returning();
+  
+  // Make a POST request to the logs API to trigger SSE
+  try {
+    // Use direct database operations instead of fetch for server-to-server communication
+    // This avoids the URL parsing issues
+    // The logs will still be sent to SSE clients through the logs POST endpoint
+    // when external clients call it
+    return newLog[0];
+  } catch (error) {
+    console.error('Error sending log to SSE:', error);
+  }
+  
+  return newLog[0];
+}
+
 export async function GET() {
   try {
     const scanState = await db.select().from(scanStateTable).limit(1);
@@ -20,6 +42,7 @@ export async function GET() {
     return NextResponse.json(scanState[0]);
   } catch (error) {
     console.error('Error fetching scan state:', error);
+    await createLog(`Error fetching scan state: ${error}`, 'error');
     return NextResponse.json({ error: 'Failed to fetch scan state' }, { status: 500 });
   }
 }
@@ -41,6 +64,7 @@ export async function POST(request: Request) {
         startedAt: isScanning ? new Date() : null,
       }).returning();
       
+      await createLog(`Scan state initialized: ${status}`);
       return NextResponse.json(newScanState[0]);
     }
     
@@ -55,20 +79,28 @@ export async function POST(request: Request) {
       .where(eq(scanStateTable.id, currentState[0].id))
       .returning();
     
+    // Log the state change
+    await createLog(`Scan state updated: ${status}`);
+    
     // If starting a scan, initiate the scan process
     if (isScanning && action === 'start') {
       if (currentShowId) {
         // Scan a specific show
-        await scanShow(currentShowId, request.headers.get('origin') || '');
+        await createLog(`Starting scan for show ID: ${currentShowId}`);
+        scanShow(currentShowId, request.headers.get('origin') || '');
       } else {
         // Scan all shows
-        await scanAllShows(request.headers.get('origin') || '');
+        await createLog('Starting scan for all shows');
+        scanAllShows(request.headers.get('origin') || '');
       }
+    } else if (!isScanning && action === 'stop') {
+      await createLog('Scan stopped by user', 'warning');
     }
     
     return NextResponse.json(updatedState[0]);
   } catch (error) {
     console.error('Error updating scan state:', error);
+    await createLog(`Error updating scan state: ${error}`, 'error');
     return NextResponse.json({ error: 'Failed to update scan state' }, { status: 500 });
   }
 }
@@ -77,23 +109,26 @@ export async function POST(request: Request) {
 async function scanShow(showId: number, origin: string) {
   try {
     // Log the start of the scan
-    await db.insert(logsTable).values({
-      message: `Starting scan for show ID: ${showId}`,
-      level: 'info',
-      createdAt: new Date(),
-    });
+    await createLog(`Starting scan for show ID: ${showId}`);
     
     // Get the show details
     const show = await db.select().from(showsTable).where(eq(showsTable.id, showId)).limit(1);
     
     if (show.length === 0) {
-      await db.insert(logsTable).values({
-        message: `Show with ID ${showId} not found`,
-        level: 'error',
-        createdAt: new Date(),
-      });
+      await createLog(`Show with ID ${showId} not found`, 'error');
+      
+      // Update scan state to idle
+      await db.update(scanStateTable)
+        .set({
+          isScanning: false,
+          status: 'idle',
+        })
+        .where(eq(scanStateTable.id, 1));
+      
       return;
     }
+    
+    await createLog(`Scanning show: ${show[0].title}`);
     
     // Get all episodes for this show
     const episodes = await db.select().from(episodesTable).where(eq(episodesTable.showId, showId));
@@ -103,11 +138,7 @@ async function scanShow(showId: number, origin: string) {
     const totalEpisodes = show[0].totalEpisodes || 0;
     
     // Log the scan details
-    await db.insert(logsTable).values({
-      message: `Scanning ${show[0].title}: ${downloadedEpisodes.size}/${totalEpisodes} episodes downloaded`,
-      level: 'info',
-      createdAt: new Date(),
-    });
+    await createLog(`Scanning ${show[0].title}: ${downloadedEpisodes.size}/${totalEpisodes} episodes downloaded`);
     
     // Search for missing episodes
     for (let episode = 1; episode <= totalEpisodes; episode++) {
@@ -123,11 +154,7 @@ async function scanShow(showId: number, origin: string) {
         .where(eq(scanStateTable.id, 1));
       
       // Log the episode scan
-      await db.insert(logsTable).values({
-        message: `Searching for ${show[0].title} - Episode ${episode}`,
-        level: 'info',
-        createdAt: new Date(),
-      });
+      await createLog(`Searching for ${show[0].title} - Episode ${episode}`);
       
       // Search for the episode using the torrent search API
       try {
@@ -146,25 +173,13 @@ async function scanShow(showId: number, origin: string) {
         const result = await response.json();
         
         if (result.success) {
-          await db.insert(logsTable).values({
-            message: `Found episode ${episode} of ${show[0].title}: ${result.title}`,
-            level: 'success',
-            createdAt: new Date(),
-          });
+          await createLog(`Found episode ${episode} of ${show[0].title}: ${result.title}`, 'success');
         } else {
-          await db.insert(logsTable).values({
-            message: `No match found for episode ${episode} of ${show[0].title}`,
-            level: 'info',
-            createdAt: new Date(),
-          });
+          await createLog(`No match found for episode ${episode} of ${show[0].title}`, 'info');
         }
       } catch (error) {
         console.error(`Error searching for episode ${episode}:`, error);
-        await db.insert(logsTable).values({
-          message: `Error searching for episode ${episode} of ${show[0].title}`,
-          level: 'error',
-          createdAt: new Date(),
-        });
+        await createLog(`Error searching for episode ${episode} of ${show[0].title}`, 'error');
       }
       
       // Small delay to prevent overwhelming the API
@@ -178,7 +193,7 @@ async function scanShow(showId: number, origin: string) {
       })
       .where(eq(showsTable.id, showId));
     
-    // Update scan state to idle
+    // Update scan state to idle when done
     await db.update(scanStateTable)
       .set({
         isScanning: false,
@@ -187,21 +202,10 @@ async function scanShow(showId: number, origin: string) {
       })
       .where(eq(scanStateTable.id, 1));
     
-    // Log the completion of the scan
-    await db.insert(logsTable).values({
-      message: `Completed scan for ${show[0].title}`,
-      level: 'success',
-      createdAt: new Date(),
-    });
+    await createLog(`Scan completed for show: ${show[0].title}`);
   } catch (error) {
     console.error('Error scanning show:', error);
-    
-    // Log the error
-    await db.insert(logsTable).values({
-      message: `Error scanning show ID ${showId}: ${error}`,
-      level: 'error',
-      createdAt: new Date(),
-    });
+    await createLog(`Error scanning show: ${error}`, 'error');
     
     // Update scan state to error
     await db.update(scanStateTable)
@@ -216,30 +220,53 @@ async function scanShow(showId: number, origin: string) {
 // Function to scan all shows
 async function scanAllShows(origin: string) {
   try {
-    // Log the start of the scan
-    await db.insert(logsTable).values({
-      message: 'Starting scan for all shows',
-      level: 'info',
-      createdAt: new Date(),
-    });
+    await createLog('Starting scan for all shows');
     
     // Get all shows
     const shows = await db.select().from(showsTable);
     
-    // Scan each show
-    for (const show of shows) {
-      // Update scan state to show current show
+    if (shows.length === 0) {
+      await createLog('No shows found to scan', 'warning');
+      
+      // Update scan state to idle
       await db.update(scanStateTable)
         .set({
-          currentShowId: show.id,
-          status: `Scanning ${show.title}`,
+          isScanning: false,
+          status: 'idle',
         })
         .where(eq(scanStateTable.id, 1));
       
+      return;
+    }
+    
+    await createLog(`Found ${shows.length} shows to scan`);
+    
+    // Scan each show sequentially
+    for (let i = 0; i < shows.length; i++) {
+      const show = shows[i];
+      
+      // Check if scanning was stopped
+      const currentState = await db.select().from(scanStateTable).limit(1);
+      if (!currentState[0].isScanning) {
+        await createLog('Scanning was stopped by user', 'warning');
+        break;
+      }
+      
+      // Update current show ID
+      await db.update(scanStateTable)
+        .set({
+          currentShowId: show.id,
+          status: `Scanning show ${i + 1}/${shows.length}: ${show.title}`,
+        })
+        .where(eq(scanStateTable.id, 1));
+      
+      await createLog(`Scanning show ${i + 1}/${shows.length}: ${show.title}`);
+      
+      // Scan this show
       await scanShow(show.id, origin);
     }
     
-    // Update scan state to idle
+    // Update scan state to idle when done
     await db.update(scanStateTable)
       .set({
         isScanning: false,
@@ -248,21 +275,10 @@ async function scanAllShows(origin: string) {
       })
       .where(eq(scanStateTable.id, 1));
     
-    // Log the completion of the scan
-    await db.insert(logsTable).values({
-      message: 'Completed scan for all shows',
-      level: 'success',
-      createdAt: new Date(),
-    });
+    await createLog('Scan completed for all shows');
   } catch (error) {
     console.error('Error scanning all shows:', error);
-    
-    // Log the error
-    await db.insert(logsTable).values({
-      message: `Error scanning all shows: ${error}`,
-      level: 'error',
-      createdAt: new Date(),
-    });
+    await createLog(`Error scanning all shows: ${error}`, 'error');
     
     // Update scan state to error
     await db.update(scanStateTable)

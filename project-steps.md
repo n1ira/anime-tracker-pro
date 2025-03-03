@@ -34,14 +34,14 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Confirm that sample titles sent to the OpenAI API are parsed correctly without errors.
 
 ## Step 4: Real-Time Scanning & Logging Functionality
-- [ ] Create API endpoints to start, stop, and monitor scans for a single show or all shows.
-- [ ] Develop a real-time logging mechanism to report scanning progress (e.g., "Started scanning for episode X of show Y", "Found/did not find episode X", etc.).
-- [ ] Integrate WebSocket or server-sent events to push real-time updates from the backend to the frontend.
+- [x] Create API endpoints to start, stop, and monitor scans for a single show or all shows.
+- [x] Develop a real-time logging mechanism to report scanning progress (e.g., "Started scanning for episode X of show Y", "Found/did not find episode X", etc.).
+- [x] Integrate WebSocket or server-sent events to push real-time updates from the backend to the frontend.
 
 ### Bug Check (Step 4)
-- [ ] Manually test starting and stopping scans; ensure that real-time log messages are pushed to the frontend.
-- [ ] Validate that scanning can be cancelled at any time and that backend states update accurately.
-- [ ] Use CMD-based API calls to simulate and verify real-time log updates.
+- [x] Manually test starting and stopping scans; ensure that real-time log messages are pushed to the frontend.
+- [x] Validate that scanning can be cancelled at any time and that backend states update accurately.
+- [x] Use CMD-based API calls to simulate and verify real-time log updates.
 
 ## Step 5: Frontend UI Development for Shows & Episodes Management
 - [ ] Develop a modern, responsive UI using shadcn components with Next.js, TypeScript, and Tailwind CSS.
