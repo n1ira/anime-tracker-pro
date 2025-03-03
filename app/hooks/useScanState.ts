@@ -88,7 +88,7 @@ export function useScanState() {
         body: JSON.stringify({
           isScanning: true,
           currentShowId: showId || null,
-          status: showId ? `Scanning show ${showId}` : 'Scanning all shows',
+          status: showId ? `Scanning show ID: ${showId}` : 'Scanning all shows',
           action: 'start',
         }),
       });

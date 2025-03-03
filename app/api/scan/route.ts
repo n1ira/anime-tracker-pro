@@ -287,7 +287,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         await db.update(scanStateTable)
           .set({
             isScanning: false,
-            status: 'Scan completed',
+            status: `Scan completed for ${truncateTitle(show[0].title)}`,
             currentShowId: null,
           })
           .where(eq(scanStateTable.id, currentStateData[0].id));
@@ -321,16 +321,15 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     await createLog(`Scanning ${show[0].title || 'Unknown Show'}: ${downloadedCount}/${totalEpisodesInRange} episodes downloaded in configured range (S${startSeason}E${startEpisode} to S${endSeason}E${endEpisode})`);
     await createLog(`Searching for ${show[0].title || 'Unknown Show'} - S${targetSeason}E${targetEpisode} (absolute #${nextEpisode})`);
     
-    // Update scan state to show the next episode we're looking for
-    const currentState = await db.select().from(scanStateTable)
-      .limit(1);
-    
-    await db.update(scanStateTable)
-      .set({
-        currentShowId: showId,
-        status: `Searching for ${show[0].title || 'Unknown Show'} - S${targetSeason}E${targetEpisode} (absolute #${nextEpisode})`,
-      })
-      .where(eq(scanStateTable.id, currentState[0].id));
+    // Update scan state with current episode being scanned
+    if (!isPartOfBatchScan) {
+      const currentStateData = await db.select().from(scanStateTable).limit(1);
+      await db.update(scanStateTable)
+        .set({
+          status: `Searching for ${truncateTitle(show[0].title || 'Unknown Show')} S${targetSeason}E${targetEpisode} (Absolute Episode ${nextEpisode})`,
+        })
+        .where(eq(scanStateTable.id, currentStateData[0].id));
+    }
     
     // Let's start scanning from the next episode
     let consecutiveFailures = 0;
@@ -360,12 +359,15 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         { [show[0].title || 'Unknown Show']: { episodes_per_season: episodesPerSeasonArray } }
       );
       
-      // Update scan state to show current episode
-      await db.update(scanStateTable)
-        .set({
-          status: `Searching for ${show[0].title || 'Unknown Show'} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`,
-        })
-        .where(eq(scanStateTable.id, currentState[0].id));
+      // Update scan state with current search query
+      if (!isPartOfBatchScan) {
+        const currentStateData = await db.select().from(scanStateTable).limit(1);
+        await db.update(scanStateTable)
+          .set({
+            status: `Searching for ${truncateTitle(show[0].title || 'Unknown Show')} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`,
+          })
+          .where(eq(scanStateTable.id, currentStateData[0].id));
+      }
       
       // Log the episode scan
       await createLog(`Searching for ${show[0].title || 'Unknown Show'} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`);
@@ -486,7 +488,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       await db.update(scanStateTable)
         .set({
           isScanning: false,
-          status: 'Scan completed',
+          status: `Scan completed for ${truncateTitle(show[0].title)}`,
           currentShowId: null,
         })
         .where(eq(scanStateTable.id, currentStateData[0].id));
@@ -573,7 +575,7 @@ async function scanAllShows(origin: string) {
       await db.update(scanStateTable)
         .set({
           currentShowId: show.id,
-          status: `Scanning show ${i + 1}/${shows.length}: ${show.title}`,
+          status: `Scanning show ${i + 1}/${shows.length}: ${truncateTitle(show.title)}`,
         })
         .where(eq(scanStateTable.id, currentState[0].id));
       
@@ -663,4 +665,10 @@ async function scanAllShows(origin: string) {
     
     console.log('DEBUG: scanAllShows function completed');
   }
+}
+
+// Helper function to truncate show titles for status messages
+function truncateTitle(title: string, maxLength: number = 20): string {
+  if (title.length <= maxLength) return title;
+  return title.substring(0, maxLength) + '...';
 } 
