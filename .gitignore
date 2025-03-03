@@ -34,3 +34,45 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Package manager caches
+**/node_modules/
+**/.npm/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Build caches
+**/.gradle/
+**/.nuget/
+**/.cargo/
+**/.stack-work/
+**/.ccache/
+
+# IDE and Editor caches
+**/.idea/
+**/.vscode/
+**/*.swp
+**/*~
+
+# Temp files
+**/*.tmp
+**/*.temp
+**/*.bak
+
+# Project files
+**/*.meta
+**/package-lock.json
+
+# AI Specific
+.repo_ignore
+.cursorrules
+/.cursor
+
+# Project Specific
+**/.github/
+**/.husky/
+**/prompts/
+**/migrations/
+**/public/
+**/.next/
