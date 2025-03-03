@@ -8,24 +8,28 @@ import { sql } from 'drizzle-orm';
 
 // Helper function to create a log and return it
 async function createLog(message: string, level: string = 'info') {
-  const newLog = await db.insert(logsTable).values({
-    message,
-    level,
-    createdAt: new Date(),
-  }).returning();
+  // Skip repetitive "Direct match failed" and "Comparing episodes" logs for frontend display
+  // These will still be logged to the console but not saved to the database
+  const isRepetitiveLog = 
+    (message.startsWith('Direct match failed:') || 
+     message.startsWith('Comparing episodes for') ||
+     message.startsWith('Parsed title'));
   
-  // Make a POST request to the logs API to trigger SSE
-  try {
-    // Use direct database operations instead of fetch for server-to-server communication
-    // This avoids the URL parsing issues
-    // The logs will still be sent to SSE clients through the logs POST endpoint
-    // when external clients call it
-    return newLog[0];
-  } catch (error) {
-    console.error('Error sending log to SSE:', error);
+  console.log(`${level.toUpperCase()}: ${message}`);
+  
+  if (isRepetitiveLog) {
+    return; // Skip saving repetitive logs to the database
   }
   
-  return newLog[0];
+  try {
+    await db.insert(logsTable).values({
+      message,
+      level,
+      createdAt: new Date(),
+    });
+  } catch (error) {
+    console.error(`Error creating log: ${error}`);
+  }
 }
 
 export async function GET() {
@@ -222,123 +226,100 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       .from(episodesTable)
       .where(eq(episodesTable.showId, showId))
       .orderBy(episodesTable.episodeNumber);
+      
+    // Get downloaded episodes
+    const downloadedEpisodes = allEpisodes.filter(ep => ep.isDownloaded);
     
-    // Parse episodesPerSeason
-    let episodesPerSeason: number | number[] = 12;
-    if (show[0].episodesPerSeason) {
-      try {
-        const parsed = JSON.parse(show[0].episodesPerSeason);
-        if (Array.isArray(parsed)) {
-          episodesPerSeason = parsed;
-        } else {
-          episodesPerSeason = parseInt(show[0].episodesPerSeason, 10) || 12;
-        }
-        console.log(`DEBUG: Parsed episodesPerSeason for "${show[0].title}":`, JSON.stringify(episodesPerSeason));
-      } catch (e) {
-        episodesPerSeason = parseInt(show[0].episodesPerSeason, 10) || 12;
+    // Parse episodes per season configuration
+    let episodesPerSeasonArray: number[];
+    try {
+      const episodesPerSeasonValue = show[0].episodesPerSeason;
+      // Check if it's a single number or a JSON array
+      if (!episodesPerSeasonValue) {
+        // Handle null or undefined case
+        episodesPerSeasonArray = Array(20).fill(12); // Default to 12 episodes per season
+      } else if (!isNaN(Number(episodesPerSeasonValue))) {
+        episodesPerSeasonArray = Array(20).fill(Number(episodesPerSeasonValue)); // Assume max 20 seasons
+      } else {
+        episodesPerSeasonArray = JSON.parse(episodesPerSeasonValue);
       }
+      console.log(`DEBUG: Parsed episodesPerSeason: ${JSON.stringify(episodesPerSeasonArray)}`);
+    } catch (error) {
+      console.error(`Error parsing episodesPerSeason: ${error}`);
+      episodesPerSeasonArray = Array(20).fill(12); // Default to 12 episodes per season
     }
     
-    // Helper function to calculate absolute episode number
+    // Calculate absolute episode numbers
     const calculateAbsoluteEpisode = (season: number, episode: number): number => {
-      console.log(`DEBUG: calculateAbsoluteEpisode for ${show[0].title}, S${season}E${episode}`);
-      
-      if (Array.isArray(episodesPerSeason)) {
-        console.log(`DEBUG: episodesPerSeason data: ${JSON.stringify({[show[0].title]: {episodes_per_season: episodesPerSeason}})}`);
-        console.log(`DEBUG: epsData for ${show[0].title}: ${JSON.stringify(episodesPerSeason)}`);
-        console.log(`DEBUG: Array format. Seasons before current (${season}): ${JSON.stringify(episodesPerSeason.slice(0, season - 1))}`);
-        console.log(`DEBUG: Episodes per season data: ${JSON.stringify(episodesPerSeason)}`);
-        
-        let absoluteEpisode = 0;
-        for (let s = 1; s < season; s++) {
-          const seasonEps = s <= episodesPerSeason.length 
-            ? episodesPerSeason[s - 1] 
-            : (episodesPerSeason[episodesPerSeason.length - 1] || 12);
-          absoluteEpisode += seasonEps;
-        }
-        
-        console.log(`DEBUG: Sum of episodes in previous seasons: ${absoluteEpisode}`);
-        console.log(`DEBUG: Final absolute episode: ${absoluteEpisode + episode} (${absoluteEpisode} + ${episode})`);
-        
-        return absoluteEpisode + episode;
-      } else {
-        const result = (season - 1) * episodesPerSeason + episode;
-        console.log(`DEBUG: Fixed format. Calculation: (${season} - 1) * ${episodesPerSeason} + ${episode} = ${result}`);
-        return result;
+      let absoluteEpisode = episode;
+      for (let s = 1; s < season; s++) {
+        absoluteEpisode += episodesPerSeasonArray[s - 1] || 12; // Use default 12 if not specified
       }
+      return absoluteEpisode;
     };
     
-    // Get show range
-    const startSeason = show[0].startSeason || 1;
-    const startEpisode = show[0].startEpisode || 1;
-    const endSeason = show[0].endSeason || 1;
-    const endEpisode = show[0].endEpisode || 12;
+    // Calculate min and max episode range
+    const minEpisode = calculateAbsoluteEpisode(show[0].startSeason || 1, show[0].startEpisode || 1);
+    const maxEpisode = calculateAbsoluteEpisode(show[0].endSeason || 1, show[0].endEpisode || 12);
     
-    // Calculate min and max absolute episode numbers for the range
-    const minEpisode = calculateAbsoluteEpisode(startSeason, startEpisode);
-    const maxEpisode = calculateAbsoluteEpisode(endSeason, endEpisode);
+    // Filter downloaded episodes to only include those in our configured range
+    const rangeDownloadedEpisodes = downloadedEpisodes.filter(ep => {
+      return ep.episodeNumber >= minEpisode && ep.episodeNumber <= maxEpisode;
+    });
     
-    console.log(`DEBUG: Show range is S${startSeason}E${startEpisode} to S${endSeason}E${endEpisode}`);
-    console.log(`DEBUG: Absolute episode range: ${minEpisode} to ${maxEpisode}`);
-    
-    // Get episodes in our range
-    const episodesInRange = allEpisodes.filter(ep => 
-      ep.episodeNumber >= minEpisode && ep.episodeNumber <= maxEpisode
-    );
-    
-    // Count downloaded episodes in range
-    const downloadedEpisodes = episodesInRange.filter(ep => ep.isDownloaded);
-    const downloadedCount = downloadedEpisodes.length;
-    
-    // Find the highest downloaded episode number within our range
-    let highestDownloaded = minEpisode - 1; // Start from just before the range if nothing downloaded
-    for (const episode of downloadedEpisodes) {
-      if (episode.episodeNumber > highestDownloaded) {
-        highestDownloaded = episode.episodeNumber;
+    // Find highest downloaded episode in our range
+    let highestDownloaded = minEpisode - 1; // Start with episode before our range
+    for (const ep of rangeDownloadedEpisodes) {
+      if (ep.episodeNumber > highestDownloaded) {
+        highestDownloaded = ep.episodeNumber;
       }
     }
     
-    // Log the scan details
-    await createLog(`Scanning ${show[0].title}: ${downloadedCount}/${episodesInRange.length} episodes downloaded`);
-    
-    // Find the next episode to scan after the highest downloaded one
-    const nextEpisodeToScan = highestDownloaded + 1;
-    
-    // If we've reached the max episode in our range, we're done
-    if (nextEpisodeToScan > maxEpisode) {
-      await createLog(`All episodes in range have been scanned for ${show[0].title}`, 'success');
+    // Calculate next episode to scan
+    const nextEpisode = highestDownloaded + 1;
+    if (nextEpisode > maxEpisode) {
+      await createLog(`All configured episodes (${minEpisode}-${maxEpisode}) have been downloaded for ${show[0].title}`, 'success');
       
-      // Update scan state
+      // Update scan state to idle only if not part of a batch scan
       if (!isPartOfBatchScan) {
         // Get the current scan state to use its actual ID
         const currentStateData = await db.select().from(scanStateTable).limit(1);
         await db.update(scanStateTable)
           .set({
             isScanning: false,
-            status: `Scan completed for ${show[0].title}`,
+            status: 'Scan completed',
             currentShowId: null,
           })
           .where(eq(scanStateTable.id, currentStateData[0].id));
-        
-        // Explicitly invalidate the cache to ensure frontend gets fresh data
-        invalidateCache();
       }
       
-      // Update the show's last scanned timestamp
-      await db.update(showsTable)
-        .set({
-          lastScanned: new Date(),
-        })
-        .where(eq(showsTable.id, showId));
-      
-      await createLog(`Scan completed for ${show[0].title}`, 'success');
       return true;
     }
     
-    // Calculate season and episode for the next episode to scan
-    const nextEpisodeInfo = getSeasonAndEpisode(nextEpisodeToScan, show[0].title, { 
-      [show[0].title]: { episodes_per_season: episodesPerSeason } 
-    });
+    // Convert absolute episode back to season/episode format
+    let targetSeason = 1;
+    let targetEpisode = nextEpisode;
+    
+    for (let s = 1; s < 20; s++) { // Assume max 20 seasons
+      const episodesInSeason = episodesPerSeasonArray[s - 1] || 12;
+      if (targetEpisode > episodesInSeason) {
+        targetEpisode -= episodesInSeason;
+        targetSeason++;
+      } else {
+        break;
+      }
+    }
+    
+    // Add a clear summary of what we're scanning for and why
+    const downloadedCount = rangeDownloadedEpisodes.length;
+    const totalEpisodesInRange = maxEpisode - minEpisode + 1;
+    const startSeason = show[0].startSeason || 1;
+    const startEpisode = show[0].startEpisode || 1;
+    const endSeason = show[0].endSeason || 1;
+    const endEpisode = show[0].endEpisode || 12;
+    
+    await createLog(`Scanning ${show[0].title || 'Unknown Show'}: ${downloadedCount}/${totalEpisodesInRange} episodes downloaded in configured range (S${startSeason}E${startEpisode} to S${endSeason}E${endEpisode})`);
+    await createLog(`Searching for ${show[0].title || 'Unknown Show'} - S${targetSeason}E${targetEpisode} (absolute #${nextEpisode})`);
     
     // Update scan state to show the next episode we're looking for
     const currentState = await db.select().from(scanStateTable)
@@ -347,7 +328,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     await db.update(scanStateTable)
       .set({
         currentShowId: showId,
-        status: `Searching for ${show[0].title} - S${nextEpisodeInfo.season}E${nextEpisodeInfo.episode} (absolute #${nextEpisodeToScan})`,
+        status: `Searching for ${show[0].title || 'Unknown Show'} - S${targetSeason}E${targetEpisode} (absolute #${nextEpisode})`,
       })
       .where(eq(scanStateTable.id, currentState[0].id));
     
@@ -355,7 +336,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     let consecutiveFailures = 0;
     const MAX_CONSECUTIVE_FAILURES = 1; // Changed from 3 to 1 to stop after first failure
     
-    for (let absoluteEpisode = nextEpisodeToScan; absoluteEpisode <= maxEpisode; absoluteEpisode++) {
+    for (let absoluteEpisode = nextEpisode; absoluteEpisode <= maxEpisode; absoluteEpisode++) {
       // Check if scanning was stopped
       const currentState = await db.select().from(scanStateTable)
         .limit(1);
@@ -375,19 +356,19 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       // Calculate season and episode number from absolute episode
       const { season, episode: episodeForSeason } = getSeasonAndEpisode(
         absoluteEpisode,
-        show[0].title,
-        { [show[0].title]: { episodes_per_season: episodesPerSeason } }
+        show[0].title || 'Unknown Show',
+        { [show[0].title || 'Unknown Show']: { episodes_per_season: episodesPerSeasonArray } }
       );
       
       // Update scan state to show current episode
       await db.update(scanStateTable)
         .set({
-          status: `Searching for ${show[0].title} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`,
+          status: `Searching for ${show[0].title || 'Unknown Show'} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`,
         })
         .where(eq(scanStateTable.id, currentState[0].id));
       
       // Log the episode scan
-      await createLog(`Searching for ${show[0].title} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`);
+      await createLog(`Searching for ${show[0].title || 'Unknown Show'} - S${season}E${episodeForSeason} (absolute #${absoluteEpisode})`);
       
       // Search for the episode using the torrent search API
       try {
@@ -412,7 +393,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         
         // Handle 404 as a normal "no results found" case rather than an error
         if (response.status === 404) {
-          await createLog(`No results found for episode ${episodeForSeason} of ${show[0].title} (404)`, 'info');
+          await createLog(`No results found for episode ${episodeForSeason} of ${show[0].title || 'Unknown Show'} (404)`, 'info');
           
           // Increment consecutive failures counter
           consecutiveFailures++;
@@ -438,7 +419,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
           // Get the best result (first one)
           const bestResult = result.results[0];
           
-          await createLog(`Found episode ${episodeForSeason} of ${show[0].title}: ${bestResult.title}`, 'success');
+          await createLog(`Found episode ${episodeForSeason} of ${show[0].title || 'Unknown Show'}: ${bestResult.title}`, 'success');
           
           // Log the episode match info - simplified for frontend
           console.log(`DEBUG: Episode match details - API matched absolute episode ${episodeForSeason} with parsed title: ${JSON.stringify(bestResult)}`);
@@ -460,7 +441,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
           // Reset consecutive failures counter on success
           consecutiveFailures = 0;
         } else {
-          await createLog(`No match found for episode ${episodeForSeason} of ${show[0].title}`, 'info');
+          await createLog(`No match found for episode ${episodeForSeason} of ${show[0].title || 'Unknown Show'}`, 'info');
           
           // Increment consecutive failures counter
           consecutiveFailures++;
@@ -474,7 +455,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         }
       } catch (error) {
         console.error(`Error searching for episode ${episodeForSeason}:`, error);
-        await createLog(`Error searching for episode ${episodeForSeason} of ${show[0].title}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+        await createLog(`Error searching for episode ${episodeForSeason} of ${show[0].title || 'Unknown Show'}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
         
         // Increment consecutive failures counter
         consecutiveFailures++;
@@ -518,7 +499,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       console.log(`DEBUG: Not updating scan state as this is part of a batch scan`);
     }
     
-    await createLog(`Scan completed for ${show[0].title}`, 'success');
+    await createLog(`Scan completed for ${show[0].title || 'Unknown Show'}`, 'success');
     return true;
   } catch (error) {
     console.error('Error scanning show:', error);

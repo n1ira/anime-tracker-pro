@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { logsTable } from '@/db/schema';
-import { desc, gt } from 'drizzle-orm';
+import { desc, gt, asc } from 'drizzle-orm';
 import { setSendSSEMessage } from '../route';
 
 // Use WeakRef for better garbage collection
@@ -73,58 +73,44 @@ function cleanupStaleClients() {
   }
 }
 
-// Function to send a message to all connected clients
+// Function to send SSE message to all clients
 export function sendSSEMessage(data: any) {
-  // If no clients, just return early
-  if (clients.size === 0) {
+  if (!clients.size) {
     return;
   }
   
-  try {
-    const message = `data: ${JSON.stringify(data)}\n\n`;
-    const encodedMessage = new TextEncoder().encode(message);
-    const failedClients = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
-    let successCount = 0;
-    
-    clients.forEach(clientRef => {
-      try {
-        const client = clientRef.deref();
-        // Only send to clients that are still alive and open
-        if (client && client.desiredSize !== null) {
-          client.enqueue(encodedMessage);
-          successCount++;
-        } else {
-          failedClients.add(clientRef);
-        }
-      } catch (error) {
-        console.error('Error sending SSE message:', error);
-        failedClients.add(clientRef);
+  let staleClients = 0;
+  
+  // Encode the data as an SSE message
+  const message = `data: ${JSON.stringify(data)}\n\n`;
+  const encoder = new TextEncoder();
+  const encoded = encoder.encode(message);
+  
+  // Send to all clients
+  clients.forEach((clientRef) => {
+    try {
+      const controller = clientRef.deref();
+      if (controller) {
+        controller.enqueue(encoded);
+      } else {
+        staleClients++;
       }
-    });
-    
-    // Remove failed clients
-    if (failedClients.size > 0) {
-      failedClients.forEach(clientRef => {
-        clients.delete(clientRef);
-        clientConnectTimes.delete(clientRef);
-      });
-      console.log(`Removed ${failedClients.size} failed clients. Total clients: ${clients.size}`);
+    } catch (error) {
+      console.error('Error sending SSE message to client:', error);
+      staleClients++;
     }
-    
-    if (successCount > 0) {
-      console.log(`Successfully sent SSE message to ${successCount} clients`);
-    }
-    
-    // If we have no more clients, stop polling
-    if (clients.size === 0 && pollingTimeoutRef) {
-      clearTimeout(pollingTimeoutRef);
-      pollingTimeoutRef = null;
-      isPolling = false;
-      console.log('Stopped polling as there are no more clients');
-    }
-  } catch (error) {
-    console.error('Error in sendSSEMessage:', error);
+  });
+  
+  // Log message sent
+  console.log(`Successfully sent SSE message to ${clients.size - staleClients} clients`);
+  
+  // If we have stale clients, schedule a cleanup
+  if (staleClients > 0 && !cleanupTimeoutRef) {
+    cleanupTimeoutRef = setTimeout(cleanupStaleClients, 0);
   }
+  
+  // Return the message for testing/debugging
+  return message;
 }
 
 // Set the sendSSEMessage function in the logs route
@@ -153,37 +139,87 @@ async function initLastLogId() {
 
 // Poll for new logs
 async function pollForNewLogs() {
-  // Clear any existing timeout
-  if (pollingTimeoutRef) {
-    clearTimeout(pollingTimeoutRef);
-    pollingTimeoutRef = null;
-  }
-  
-  // Set flag to prevent multiple polling loops
   if (isPolling) return;
   isPolling = true;
   
   try {
-    // Only poll if we have clients
-    if (clients.size === 0) {
-      isPolling = false;
-      return;
-    }
-
-    // Get new logs since the last check
+    // Query for new logs since the last one we saw
     const newLogs = await db.select()
       .from(logsTable)
       .where(gt(logsTable.id, lastLogId))
-      .orderBy(desc(logsTable.id))
-      .limit(20); // Reduced from 50 to 20 to prevent memory issues
+      .orderBy(asc(logsTable.id));
     
     if (newLogs.length > 0) {
-      // Update lastLogId
-      lastLogId = Math.max(lastLogId, ...newLogs.map(log => log.id));
+      // Update the last log ID
+      lastLogId = newLogs[newLogs.length - 1].id;
+      console.log(`Fetched ${newLogs.length} new logs. Updated lastLogId to ${lastLogId}`);
       
-      // Send logs to clients
+      // Dynamically import the summarizeLogs function to avoid circular imports
+      const { summarizeLogs } = await import('../route');
+      
+      // Generate summaries from the new logs
+      let summaryData: any[] = [];
+      try {
+        summaryData = summarizeLogs(newLogs);
+      } catch (error) {
+        console.error('Error generating summaries:', error);
+      }
+      
+      // Send logs and summaries to clients
       if (clients.size > 0) {
-        sendSSEMessage({ type: 'logs_update', logs: newLogs });
+        // If we have too many logs, handle them in batches
+        if (newLogs.length > 10) {
+          // First send just the summaries
+          sendSSEMessage({
+            type: 'summaries_update',
+            summaries: summaryData
+          });
+          
+          // Then send logs in smaller batches
+          const batchSize = 5;
+          for (let i = 0; i < newLogs.length; i += batchSize) {
+            const batch = newLogs.slice(i, i + batchSize);
+            sendSSEMessage({ 
+              type: 'logs_update',
+              logs: batch,
+              // Only include summaries in the first batch to avoid duplication
+              summaries: [] 
+            });
+          }
+        } else {
+          // For smaller batches, send everything together
+          sendSSEMessage({
+            type: 'logs_update',
+            logs: newLogs,
+            summaries: summaryData
+          });
+        }
+      }
+    } else {
+      // Even if there are no new logs, refresh the summaries periodically
+      // This ensures that summaries don't disappear after a scan is complete
+      try {
+        // Get recent logs to generate summaries
+        const recentLogs = await db.select()
+          .from(logsTable)
+          .orderBy(desc(logsTable.createdAt))
+          .limit(100);
+        
+        // Dynamically import the summarizeLogs function
+        const { summarizeLogs } = await import('../route');
+        
+        // Generate summaries from recent logs
+        const summaryData = summarizeLogs(recentLogs);
+        
+        // Only send if there are summaries and clients
+        if (summaryData.length > 0 && clients.size > 0) {
+          sendSSEMessage({
+            type: 'summaries_update',
+            summaries: summaryData
+          });
+        }
+      } catch (error) {
+        console.error('Error refreshing summaries:', error);
       }
     }
   } catch (error) {
@@ -256,4 +292,52 @@ export async function GET() {
       'Connection': 'keep-alive'
     }
   });
-} 
+}
+
+// Utility to send message to all connected clients
+const sendMessageToClients = async (recentLogs = []) => {
+  if (sendSSEMessage) {
+    // If we have no recent logs, just return
+    if (recentLogs.length === 0) {
+      return;
+    }
+
+    // Import summarizeLogs dynamically to avoid circular imports
+    const { summarizeLogs } = await import('../route');
+    
+    // Create summaries from the recent logs
+    let summaryData: any[] = [];
+    try {
+      summaryData = summarizeLogs(recentLogs);
+    } catch (error) {
+      console.error('Error generating summaries:', error);
+    }
+    
+    // If we have too many logs, don't send them all at once to avoid large payloads
+    // Instead, send the summaries with an empty logs array
+    if (recentLogs.length > 10) {
+      sendSSEMessage({ 
+        type: 'summaries_update',
+        summaries: summaryData
+      });
+      
+      // Then send logs in smaller batches
+      const batchSize = 5;
+      for (let i = 0; i < recentLogs.length; i += batchSize) {
+        const batch = recentLogs.slice(i, i + batchSize);
+        sendSSEMessage({ 
+          type: 'logs_update',
+          logs: batch,
+          summaries: i === 0 ? summaryData : [] // Only include summaries in the first batch
+        });
+      }
+    } else {
+      // For small log batches, send everything together
+      sendSSEMessage({ 
+        type: 'logs_update',
+        logs: recentLogs,
+        summaries: summaryData
+      });
+    }
+  }
+}; 

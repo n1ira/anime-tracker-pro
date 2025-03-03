@@ -52,15 +52,16 @@ Transform the existing Python anime tracker application into a modern web app us
   - [x] Displaying real-time log updates.
 
 ### Bug Check (Step 5)
-- [ ] Verify that the UI loads correctly and is responsive on various devices.
-- [ ] Check that clicking on a show displays its episodes and that the statuses (Downloaded/Needed) are correct.
-- [ ] Confirm that clicking on an episode toggles its status and that the change is reflected via API calls.
-- [ ] Ensure that real-time log messages display properly on the UI.
+- [x] Verify that the UI loads correctly and is responsive on various devices.
+- [x] Check that clicking on a show displays its episodes and that the statuses (Downloaded/Needed) are correct.
+- [x] Confirm that clicking on an episode toggles its status and that the change is reflected via API calls.
+- [x] Ensure that real-time log messages display properly on the UI.
 
 ## Step 6: OpenAI API Key Management Integration
 - [ ] Develop a UI section for users to enter and store their OpenAI API key.
 - [ ] Provide a checkbox option to automatically pull the Windows system environment variable `OPENAI_API_KEY`.
 - [ ] Ensure that the API key is securely stored and utilized in torrent title parsing API calls.
+- [ ] Make the torrent magnet links open automatically like in anime_tracker.py when a new episode is found and marked as downloaded
 
 ### Bug Check (Step 6)
 - [ ] Test the API key input section and verify the key is stored correctly in the database.
@@ -69,11 +70,7 @@ Transform the existing Python anime tracker application into a modern web app us
 
 ## Step 7: Final Integration, Testing & UI/UX Feedback
 - [ ] Integrate all components: backend API, real-time scanning, and the frontend UI.
-- [ ] Implement a results popup that displays a scan summary after scanning (both for a single show and for all shows).
 - [ ] Conduct thorough end-to-end testing of all features.
-- [ ] Refine UI/UX based on testing feedback, including log messages, loading indicators, and error handling.
 
 ### Bug Check (Step 7)
-- [ ] Conduct end-to-end tests using Windows CMD and manual UI interactions to ensure the full workflow functions as intended.
-- [ ] Verify that results popups display accurate summaries after scans.
 - [ ] Confirm overall system stability and correct synchronization between frontend and backend components.

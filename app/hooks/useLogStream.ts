@@ -7,8 +7,19 @@ type Log = {
   createdAt: string;
 };
 
+// Add a type for log summaries
+type LogSummary = {
+  id: string;
+  timestamp: string;
+  show: string;
+  target: string;
+  status: string;
+  details: string;
+};
+
 export function useLogStream() {
   const [logs, setLogs] = useState<Log[]>([]);
+  const [summaries, setSummaries] = useState<LogSummary[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +33,8 @@ export function useLogStream() {
         throw new Error(`Failed to fetch logs: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
-      setLogs(data);
+      setLogs(data.logs || data); // Handle both new and old formats
+      setSummaries(data.summary || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching logs:', err);
@@ -45,6 +57,7 @@ export function useLogStream() {
       
       // Clear logs in the UI immediately
       setLogs([]);
+      setSummaries([]);
       setError(null);
       
       // Fetch logs again to ensure we have the latest state
@@ -92,22 +105,36 @@ export function useLogStream() {
           try {
             const data = JSON.parse(event.data);
             
-            // Handle the new batch format
-            if (data.type === 'logs_update' && Array.isArray(data.logs)) {
-              setLogs(prevLogs => {
-                const newLogs = [...prevLogs];
-                
-                // Add each new log if it doesn't already exist
-                data.logs.forEach((newLog: Log) => {
-                  if (!newLogs.some(log => log.id === newLog.id)) {
-                    newLogs.unshift(newLog);
-                  }
+            // Handle the logs update format
+            if (data.type === 'logs_update') {
+              // Update logs
+              if (Array.isArray(data.logs)) {
+                setLogs(prevLogs => {
+                  const newLogs = [...prevLogs];
+                  
+                  // Add each new log if it doesn't already exist
+                  data.logs.forEach((newLog: Log) => {
+                    if (!newLogs.some(log => log.id === newLog.id)) {
+                      newLogs.push(newLog); // Add to the end for chronological display
+                    }
+                  });
+                  
+                  // Keep only the latest 100 logs
+                  return newLogs.slice(-100);
                 });
-                
-                // Keep only the latest 100 logs
-                return newLogs.slice(0, 100);
-              });
-            } 
+              }
+              
+              // Update summaries if they're included
+              if (Array.isArray(data.summaries) && data.summaries.length > 0) {
+                console.log("Received new summaries with logs:", data.summaries.length);
+                setSummaries(data.summaries); // Replace with complete summary set
+              }
+            }
+            // Handle summaries-only updates
+            else if (data.type === 'summaries_update' && Array.isArray(data.summaries)) {
+              console.log("Received summaries update:", data.summaries.length);
+              setSummaries(data.summaries);
+            }
             // Handle single log format (for backward compatibility)
             else if (data.id) {
               setLogs(prevLogs => {
@@ -115,8 +142,11 @@ export function useLogStream() {
                 if (prevLogs.some(log => log.id === data.id)) {
                   return prevLogs;
                 }
-                return [data, ...prevLogs].slice(0, 100); // Keep only the latest 100 logs
+                return [...prevLogs, data].slice(-100); // Keep only the latest 100 logs, add to end
               });
+              
+              // For single logs, we might need to refresh summaries
+              setTimeout(() => fetchInitialLogs(), 100);
             }
           } catch (err) {
             console.error('Error parsing SSE message:', err);
@@ -172,5 +202,5 @@ export function useLogStream() {
     };
   }, [fetchInitialLogs]);
 
-  return { logs, isConnected, error, isLoading, clearLogs, refreshLogs: fetchInitialLogs };
+  return { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs: fetchInitialLogs };
 } 
