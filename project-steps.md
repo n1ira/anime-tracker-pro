@@ -24,14 +24,14 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Validate CRUD operations by creating, reading, updating, and deleting test entries.
 
 ## Step 3: Implement Core Torrent Search & Download Logic on Backend
-- [ ] Integrate the existing Python torrent search logic into the backend API.
-- [ ] Implement logic for constructing search queries, parsing torrent titles with OpenAI's API, and handling magnet links.
-- [ ] Ensure that torrent downloads trigger magnet links that open on the client's browser.
+- [x] Integrate the existing Python torrent search logic into the backend API.
+- [x] Implement logic for constructing search queries, parsing torrent titles with OpenAI's API, and handling magnet links.
+- [x] Ensure that torrent downloads trigger magnet links that open on the client's browser.
 
 ### Bug Check (Step 3)
-- [ ] Execute sample torrent search API calls via CMD to ensure the search queries and parsing work as expected.
-- [ ] Verify that the returned magnet links open correctly in the browser.
-- [ ] Confirm that sample titles sent to the OpenAI API are parsed correctly without errors.
+- [x] Execute sample torrent search API calls via CMD to ensure the search queries and parsing work as expected.
+- [x] Verify that the returned magnet links open correctly in the browser.
+- [x] Confirm that sample titles sent to the OpenAI API are parsed correctly without errors.
 
 ## Step 4: Real-Time Scanning & Logging Functionality
 - [ ] Create API endpoints to start, stop, and monitor scans for a single show or all shows.
