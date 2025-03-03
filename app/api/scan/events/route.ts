@@ -24,8 +24,33 @@ export async function GET() {
       
       // Function to send events to this client
       const sendEvent = (eventName: string, data: any) => {
-        const eventString = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
-        controller.enqueue(encoder.encode(eventString));
+        try {
+          // Check if controller is still active before sending
+          if (controller.desiredSize === null) {
+            // Controller is closed, don't send and clean up
+            if (clients.has(clientId)) {
+              const cleanup = clients.get(clientId);
+              if (typeof cleanup === 'function') {
+                cleanup();
+              }
+              clients.delete(clientId);
+            }
+            return;
+          }
+          
+          const eventString = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+          controller.enqueue(encoder.encode(eventString));
+        } catch (error) {
+          console.error(`Error sending event to client ${clientId}:`, error);
+          // Clean up this client if there's an error
+          if (clients.has(clientId)) {
+            const cleanup = clients.get(clientId);
+            if (typeof cleanup === 'function') {
+              cleanup();
+            }
+            clients.delete(clientId);
+          }
+        }
       };
       
       // Event listener for log events
@@ -66,15 +91,19 @@ export async function GET() {
       clients.set(clientId, () => {
         clearInterval(intervalId);
         clients.delete(clientId);
+        console.log(`Client ${clientId} disconnected, cleanup complete`);
       });
       
       // Send initial connection event
       sendEvent('connected', { message: 'Connected to scan events' });
+      
+      console.log(`Client ${clientId} connected to scan events. Total clients: ${clients.size}`);
     },
     cancel() {
       // This will be called when the client disconnects
       // We don't have access to the clientId here, so we can't do specific cleanup
       // The clients will be cleaned up when the server restarts or by a cleanup routine
+      console.log('Client disconnected from scan events');
     }
   });
 

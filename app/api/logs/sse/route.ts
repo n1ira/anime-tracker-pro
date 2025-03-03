@@ -29,6 +29,7 @@ function cleanupStaleClients() {
   
   const now = Date.now();
   const clientsToRemove = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
+  let initialClientCount = clients.size;
   
   clients.forEach(clientRef => {
     try {
@@ -58,28 +59,41 @@ function cleanupStaleClients() {
   // Remove stale clients
   let removedCount = 0;
   clientsToRemove.forEach(clientRef => {
-    clients.delete(clientRef);
+    if (clients.delete(clientRef)) {
+      removedCount++;
+    }
     clientConnectTimes.delete(clientRef);
-    removedCount++;
   });
   
   if (removedCount > 0) {
-    console.log(`Cleanup: Removed ${removedCount} stale clients. Total clients: ${clients.size}`);
+    console.log(`Cleanup: Removed ${removedCount} stale clients. Active clients: ${clients.size}`);
   }
   
   // Only schedule next cleanup if we have clients
   if (clients.size > 0) {
     cleanupTimeoutRef = setTimeout(cleanupStaleClients, 10000); // Run every 10 seconds
+  } else if (initialClientCount > 0) {
+    // If we had clients before but now have none, log it
+    console.log('Cleanup: All clients have disconnected. Pausing cleanup cycle.');
+    
+    // Also check if we should stop polling
+    if (pollingTimeoutRef && !isPolling) {
+      clearTimeout(pollingTimeoutRef);
+      pollingTimeoutRef = null;
+      console.log('Stopped polling for logs as all clients have disconnected');
+    }
   }
 }
 
 // Function to send SSE message to all clients
 export function sendSSEMessage(data: any) {
-  if (!clients.size) {
-    return;
+  // Early return if no clients
+  if (clients.size === 0) {
+    console.log('No clients connected, skipping message send');
+    return null;
   }
   
-  let staleClients = 0;
+  let activeClients = 0;
   const clientsToRemove = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
   
   // Encode the data as an SSE message
@@ -93,7 +107,6 @@ export function sendSSEMessage(data: any) {
       const controller = clientRef.deref();
       if (!controller) {
         // Client has been garbage collected
-        staleClients++;
         clientsToRemove.add(clientRef);
         return;
       }
@@ -101,15 +114,14 @@ export function sendSSEMessage(data: any) {
       // Check if the controller is still usable before trying to send
       // This helps avoid the "Controller is already closed" error
       if (controller.desiredSize === null) {
-        staleClients++;
         clientsToRemove.add(clientRef);
         return;
       }
       
       controller.enqueue(encoded);
+      activeClients++; // Count only successful sends
     } catch (error) {
       console.error('Error sending SSE message to client:', error);
-      staleClients++;
       clientsToRemove.add(clientRef);
     }
   });
@@ -120,11 +132,15 @@ export function sendSSEMessage(data: any) {
     clientConnectTimes.delete(ref);
   });
   
-  // Log message sent
-  console.log(`Successfully sent SSE message to ${clients.size - staleClients} clients`);
+  // Log message sent - use activeClients for accuracy
+  if (activeClients > 0) {
+    console.log(`Successfully sent SSE message to ${activeClients} clients`);
+  } else if (clientsToRemove.size > 0) {
+    console.log(`No active clients found. Removed ${clientsToRemove.size} stale clients.`);
+  }
   
   // If we have stale clients, schedule a cleanup
-  if (staleClients > 0 && !cleanupTimeoutRef) {
+  if (clientsToRemove.size > 0 && !cleanupTimeoutRef) {
     cleanupTimeoutRef = setTimeout(cleanupStaleClients, 0);
   }
   
@@ -158,10 +174,34 @@ async function initLastLogId() {
 
 // Poll for new logs
 async function pollForNewLogs() {
+  // First, check if we have any clients to send to
+  if (clients.size === 0) {
+    console.log('No clients connected, pausing polling');
+    pollingTimeoutRef = null;
+    isPolling = false;
+    return;
+  }
+
+  // Check if already polling
   if (isPolling) return;
   isPolling = true;
   
   try {
+    // Run a cleanup first to ensure we have accurate client count
+    // This will remove any stale clients before we try to send messages
+    await new Promise<void>(resolve => {
+      cleanupStaleClients();
+      resolve();
+    });
+    
+    // After cleanup, check again if we have clients
+    if (clients.size === 0) {
+      console.log('No active clients after cleanup, pausing polling');
+      pollingTimeoutRef = null;
+      isPolling = false;
+      return;
+    }
+    
     // Query for new logs since the last one we saw
     const newLogs = await db.select()
       .from(logsTable)
@@ -184,7 +224,7 @@ async function pollForNewLogs() {
         console.error('Error generating summaries:', error);
       }
       
-      // Send logs and summaries to clients
+      // Send logs and summaries to clients - double-check we still have clients
       if (clients.size > 0) {
         // If we have too many logs, handle them in batches
         if (newLogs.length > 10) {
@@ -196,7 +236,7 @@ async function pollForNewLogs() {
           
           // Then send logs in smaller batches
           const batchSize = 5;
-          for (let i = 0; i < newLogs.length; i += batchSize) {
+          for (let i = 0; i < newLogs.length && clients.size > 0; i += batchSize) {
             const batch = newLogs.slice(i, i + batchSize);
             sendSSEMessage({ 
               type: 'logs_update',
@@ -218,6 +258,11 @@ async function pollForNewLogs() {
       // Even if there are no new logs, refresh the summaries periodically
       // This ensures that summaries don't disappear after a scan is complete
       try {
+        // Check again that we have clients before processing
+        if (clients.size === 0) {
+          return;
+        }
+        
         // Get recent logs to generate summaries
         const recentLogs = await db.select()
           .from(logsTable)
@@ -248,6 +293,9 @@ async function pollForNewLogs() {
     isPolling = false;
     if (clients.size > 0) {
       pollingTimeoutRef = setTimeout(pollForNewLogs, POLLING_INTERVAL);
+    } else {
+      console.log('No clients left after polling, stopping polling cycle');
+      pollingTimeoutRef = null;
     }
   }
 }
@@ -276,9 +324,14 @@ export async function GET() {
         controller.enqueue(new TextEncoder().encode('data: {"message": "Connected to logs stream"}\n\n'));
         
         // Start polling if not already polling
+        // We need to check both isPolling and pollingTimeoutRef to handle all cases
         if (!isPolling && !pollingTimeoutRef) {
+          console.log('Starting polling for new logs');
           pollingTimeoutRef = setTimeout(pollForNewLogs, 0);
-          console.log('Started polling for new logs');
+        } else if (pollingTimeoutRef) {
+          console.log('Polling already scheduled');
+        } else if (isPolling) {
+          console.log('Polling already in progress');
         }
         
         // Start cleanup if not already running
@@ -292,11 +345,13 @@ export async function GET() {
     cancel() {
       try {
         // We can't directly remove this client since we don't have a reference to the WeakRef
-        // The cleanup process will handle removing stale clients
-        console.log(`Client disconnected. Total clients: ${clients.size}`);
+        // But we can trigger a cleanup to remove any stale clients
+        console.log(`Client disconnected. Remaining clients: ${clients.size - 1}`);
         
-        // Force a cleanup to remove this client
-        cleanupStaleClients();
+        // Force an immediate cleanup to remove this client
+        if (!cleanupTimeoutRef) {
+          cleanupTimeoutRef = setTimeout(cleanupStaleClients, 0);
+        }
       } catch (error) {
         console.error('Error in SSE cancel handler:', error);
       }
