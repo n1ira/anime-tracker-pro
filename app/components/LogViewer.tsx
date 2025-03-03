@@ -221,145 +221,159 @@ export function LogViewer() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-220px)] rounded-md border bg-card">
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center">
-          <h2 className="text-lg font-semibold mr-2">Scanner Logs</h2>
-          {isActiveScan && (
+    <Card className="min-h-[calc(100vh-220px)] shadow-md">
+      <CardHeader className="border-b bg-muted/20 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <CardTitle className="mr-2">Scanner Logs</CardTitle>
+            {isActiveScan && (
+              <Badge 
+                variant="outline" 
+                className="bg-blue-100 text-blue-800 border-blue-300 px-2 py-0 h-6 animate-pulse"
+              >
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Scanning
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
             <Badge 
-              variant="outline" 
-              className="bg-blue-100 text-blue-800 border-blue-300 px-2 py-0 h-6 animate-pulse"
+              variant={isConnected ? "success" : "destructive"}
+              className="px-2 py-0 h-6"
             >
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              Scanning
+              {isConnected ? "Connected" : "Disconnected"}
             </Badge>
-          )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleRefreshLogs}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setClearDialogOpen(true)}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge 
-            variant={isConnected ? "success" : "destructive"}
-            className="px-2 py-0 h-6"
-          >
-            {isConnected ? "Connected" : "Disconnected"}
-          </Badge>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleRefreshLogs}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setClearDialogOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="border-b px-4">
+            <TabsList className="bg-transparent h-10">
+              <TabsTrigger value="summary" className="data-[state=active]:bg-muted/50">
+                <List className="h-4 w-4 mr-2" />
+                Summary
+              </TabsTrigger>
+              <TabsTrigger value="details" className="data-[state=active]:bg-muted/50">
+                <Rows className="h-4 w-4 mr-2" />
+                Details
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-        <div className="px-4 pt-2">
-          <TabsList className="w-full max-w-md grid grid-cols-2 h-9">
-            <TabsTrigger value="summary">Scan Summary</TabsTrigger>
-            <TabsTrigger value="details">Details</TabsTrigger>
-          </TabsList>
-        </div>
+          <TabsContent value="summary" className="p-4 h-[calc(100vh-300px)] overflow-auto">
+            <div ref={summaryTopRef} className="h-1" />
+            
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        <TabsContent value="summary" className="p-4 h-[calc(100vh-300px)] overflow-auto">
-          <div ref={summaryTopRef} className="h-1" />
-          
-          {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {sortedSummaries && sortedSummaries.length > 0 ? (
-            <div className="space-y-4">
-              {sortedSummaries.map((summary) => {
-                const { color, icon } = getStatusColor(summary.status);
-                return (
-                  <div 
-                    key={summary.id} 
-                    className="p-4 rounded-md border bg-card shadow-sm hover:shadow transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center text-lg font-medium">
-                        {summary.show || 'Unknown Show'}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatTimestamp(summary.timestamp)}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-y-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Target:</span>{' '}
-                        {summary.target !== 'Unknown' ? summary.target : 'Not specified'}
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <span className="text-muted-foreground mr-1">Status:</span>
-                        <span className={`flex items-center ${color}`}>
-                          {icon} {summary.status}
-                        </span>
-                      </div>
-                      
-                      {summary.details && (
-                        <div className="col-span-2 mt-1 text-sm text-muted-foreground">
-                          {summary.details}
+            {sortedSummaries && sortedSummaries.length > 0 ? (
+              <div className="space-y-4">
+                {sortedSummaries.map((summary) => {
+                  const { color, icon } = getStatusColor(summary.status);
+                  return (
+                    <div 
+                      key={summary.id} 
+                      className="p-4 rounded-md border bg-card shadow-sm hover:shadow transition-shadow"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center text-lg font-medium">
+                          {summary.show || 'Unknown Show'}
                         </div>
-                      )}
+                        <div className="text-sm text-muted-foreground">
+                          {formatTimestamp(summary.timestamp)}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Target:</span>{' '}
+                          {summary.target !== 'Unknown' ? summary.target : 'Not specified'}
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <span className="text-muted-foreground mr-1">Status:</span>
+                          <span className={`flex items-center ${color}`}>
+                            {icon} {summary.status}
+                          </span>
+                        </div>
+                        
+                        {summary.details && (
+                          <div className="col-span-2 mt-1 text-sm text-muted-foreground">
+                            {summary.details}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <Search className="h-12 w-12 mb-4 opacity-20" />
+                <p>No scan summaries available</p>
+                <p className="text-sm">Run a scan to see results here</p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="details" className="h-[calc(100vh-300px)] overflow-auto space-y-2 p-4" ref={detailsContainerRef}>
+            {sortedLogs && sortedLogs.length > 0 ? (
+              <>
+                {sortedLogs.map((log) => (
+                  <div 
+                    key={log.id} 
+                    className="flex items-start space-x-2 py-1.5 border-b last:border-0"
+                  >
+                    <Badge 
+                      className={cn("shrink-0", getLevelColor(log.level))}
+                    >
+                      {log.level.toUpperCase()}
+                    </Badge>
+                    <div className="text-sm text-muted-foreground shrink-0 w-20">
+                      {formatTimestamp(log.createdAt)}
+                    </div>
+                    <div className="text-sm break-words flex-1">
+                      {log.message}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <Search className="h-12 w-12 mb-4 opacity-20" />
-              <p>No scan summaries available</p>
-              <p className="text-sm">Run a scan to see results here</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="details" className="h-[calc(100vh-300px)] overflow-auto space-y-2 p-4" ref={detailsContainerRef}>
-          {sortedLogs && sortedLogs.length > 0 ? (
-            <>
-              {sortedLogs.map((log) => (
-                <div 
-                  key={log.id} 
-                  className="flex items-start space-x-2 py-1.5 border-b last:border-0"
-                >
-                  <Badge 
-                    className={cn("shrink-0", getLevelColor(log.level))}
-                  >
-                    {log.level.toUpperCase()}
-                  </Badge>
-                  <div className="text-sm text-muted-foreground shrink-0 w-20">
-                    {formatTimestamp(log.createdAt)}
-                  </div>
-                  <div className="text-sm break-words flex-1">
-                    {log.message}
-                  </div>
-                </div>
-              ))}
-              <div ref={detailsBottomRef} className="h-1" />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-              <AlertCircle className="h-12 w-12 mb-4 opacity-20" />
-              <p>No logs available</p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                ))}
+                <div ref={detailsBottomRef} className="h-1" />
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mb-4 opacity-20" />
+                <p>No logs available</p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
 
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
         <AlertDialogContent>
@@ -384,15 +398,15 @@ export function LogViewer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Card>
   );
 }
 
 // Fallback icon for search results
-function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
+function SearchIcon({ className }: { className?: string }) {
   return (
     <svg
-      {...props}
+      className={className}
       xmlns="http://www.w3.org/2000/svg"
       width="24"
       height="24"

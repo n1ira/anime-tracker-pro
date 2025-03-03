@@ -80,6 +80,7 @@ export function sendSSEMessage(data: any) {
   }
   
   let staleClients = 0;
+  const clientsToRemove = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
   
   // Encode the data as an SSE message
   const message = `data: ${JSON.stringify(data)}\n\n`;
@@ -90,15 +91,33 @@ export function sendSSEMessage(data: any) {
   clients.forEach((clientRef) => {
     try {
       const controller = clientRef.deref();
-      if (controller) {
-        controller.enqueue(encoded);
-      } else {
+      if (!controller) {
+        // Client has been garbage collected
         staleClients++;
+        clientsToRemove.add(clientRef);
+        return;
       }
+      
+      // Check if the controller is still usable before trying to send
+      // This helps avoid the "Controller is already closed" error
+      if (controller.desiredSize === null) {
+        staleClients++;
+        clientsToRemove.add(clientRef);
+        return;
+      }
+      
+      controller.enqueue(encoded);
     } catch (error) {
       console.error('Error sending SSE message to client:', error);
       staleClients++;
+      clientsToRemove.add(clientRef);
     }
+  });
+  
+  // Remove any stale clients we found during this operation
+  clientsToRemove.forEach(ref => {
+    clients.delete(ref);
+    clientConnectTimes.delete(ref);
   });
   
   // Log message sent

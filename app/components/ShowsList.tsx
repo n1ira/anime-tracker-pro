@@ -240,34 +240,36 @@ export function ShowsList() {
 
   return (
     <>
-      <Card className="w-full">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Tracked Shows</CardTitle>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchShows}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => router.push('/shows/new')}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Show
-            </Button>
+      <Card className="shadow-md">
+        <CardHeader className="border-b bg-muted/20">
+          <div className="flex justify-between items-center">
+            <CardTitle>My Shows</CardTitle>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchShows}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => router.push('/shows/new')}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Show
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           {error && (
             <div className="text-destructive mb-4">{error}</div>
           )}
@@ -280,18 +282,18 @@ export function ShowsList() {
               No shows found. Add a show to get started.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid gap-3">
               {shows.map((show) => (
                 <div
                   key={show.id}
-                  className={`flex items-center justify-between p-3 rounded-md border hover:bg-accent/50 cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between p-4 rounded-md border hover:bg-accent/50 cursor-pointer transition-colors shadow-sm ${
                     hasMultipleSeasons(show.id) ? 'flex-col items-start' : ''
                   }`}
                   onClick={(e) => handleShowClick(show.id, e)}
                 >
                   <div className={`flex ${hasMultipleSeasons(show.id) ? 'flex-col w-full' : 'items-center justify-between w-full'}`}>
                     <div className={`flex ${hasMultipleSeasons(show.id) ? 'flex-col' : 'flex-col flex-grow'}`}>
-                      <span className="font-medium">{show.title}</span>
+                      <span className="font-medium text-lg">{show.title}</span>
                       {renderEpisodesCount(show.id)}
                     </div>
                     
@@ -306,6 +308,7 @@ export function ShowsList() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="hover:bg-accent"
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/shows/${show.id}`);
@@ -316,6 +319,7 @@ export function ShowsList() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="hover:bg-accent"
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/shows/${show.id}/edit`);
@@ -326,7 +330,7 @@ export function ShowsList() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:text-destructive"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={(e) => {
                             e.stopPropagation();
                             setShowIdToDelete(show.id);

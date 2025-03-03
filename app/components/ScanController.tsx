@@ -36,11 +36,11 @@ export function ScanController() {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
+    <Card className="w-full shadow-md">
+      <CardHeader className="border-b bg-muted/20">
         <CardTitle>Scan Controller</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <span className="font-medium">Status:</span>
@@ -72,7 +72,7 @@ export function ScanController() {
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-between border-t bg-muted/10 py-3">
         <Button
           variant="outline"
           size="sm"

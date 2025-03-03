@@ -287,18 +287,14 @@ export function ShowDetail({ showId }: ShowDetailProps) {
             <Edit className="h-4 w-4 mr-2" />
             Edit Show
           </Button>
-          <Button onClick={startSingleShowScan}>
-            <Play className="h-4 w-4 mr-2" />
-            Scan This Show
-          </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="shadow-md">
+        <CardHeader className="border-b bg-muted/20">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-2xl">{show.title}</CardTitle>
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">{show.title}</CardTitle>
               <CardDescription>
                 Status: {show.status} | Episodes: {currentEpisode}/{totalEpisodes || '?'} 
                 {(show.startSeason && show.endSeason) ? (

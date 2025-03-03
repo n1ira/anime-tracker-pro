@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
 
 interface Show {
   id?: number;
@@ -218,22 +219,32 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center">
-        <Button variant="outline" onClick={() => router.back()}>
+        <Button variant="outline" size="sm" onClick={() => router.back()} className="hover:bg-primary/10">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{isEditing ? 'Edit Show' : 'Add New Show'}</CardTitle>
+      <Card className="shadow-md border-t-4 border-t-primary">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">
+            {isEditing ? 'Edit Show' : 'Add New Show'}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {isEditing 
+              ? 'Update the details for your anime show' 
+              : 'Fill in the details to add a new anime to your collection'}
+          </p>
         </CardHeader>
+        <div className="border-t border-border" />
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6 pt-6">
             {error && (
-              <div className="text-destructive mb-4">{error}</div>
+              <div className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm font-medium border border-destructive/20">
+                {error}
+              </div>
             )}
             
             <div className="space-y-2">
@@ -247,26 +258,35 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 value={show.title}
                 onChange={handleChange}
                 required
-                className="w-full p-2 rounded-md border border-input bg-background"
+                placeholder="Enter show title"
+                className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-medium">
                 Alternate Names
               </label>
-              <div className="flex flex-wrap gap-2 mb-2">
+              <div className="flex flex-wrap gap-2 mb-2 min-h-8">
+                {alternateNames.length === 0 && (
+                  <p className="text-sm text-muted-foreground italic">No alternate names added</p>
+                )}
                 {alternateNames.map((name, index) => (
-                  <div key={index} className="flex items-center bg-secondary text-secondary-foreground px-2 py-1 rounded-md">
-                    <span className="mr-1">{name}</span>
+                  <Badge 
+                    key={index} 
+                    variant="secondary"
+                    className="flex items-center gap-1 px-2 py-1 rounded-md"
+                  >
+                    <span>{name}</span>
                     <button 
                       type="button" 
                       onClick={() => removeAlternateName(index)}
-                      className="text-secondary-foreground/70 hover:text-secondary-foreground"
+                      className="text-muted-foreground/70 hover:text-destructive transition-colors"
+                      aria-label={`Remove ${name}`}
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </div>
+                  </Badge>
                 ))}
               </div>
               <div className="flex">
@@ -274,41 +294,44 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                   type="text"
                   value={newAlternateName}
                   onChange={(e) => setNewAlternateName(e.target.value)}
-                  className="flex-1 p-2 rounded-l-md border border-input bg-background"
+                  className="flex-1 p-2 rounded-l-md border border-input bg-background shadow-sm"
                   placeholder="Add alternate name"
                 />
                 <Button 
                   type="button" 
                   onClick={addAlternateName}
                   className="rounded-l-none"
+                  disabled={!newAlternateName.trim()}
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-3 pt-1">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-medium">Episodes Per Season</label>
-                <div className="flex items-center space-x-2">
-                  <label className="text-xs">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
                     <input
                       type="radio"
+                      id="singleValue"
                       checked={!isEpisodesPerSeasonArray}
                       onChange={() => setIsEpisodesPerSeasonArray(false)}
                       className="mr-1"
                     />
-                    Single value
-                  </label>
-                  <label className="text-xs">
+                    <label htmlFor="singleValue" className="text-xs cursor-pointer">Single value</label>
+                  </div>
+                  <div className="flex items-center space-x-1">
                     <input
                       type="radio"
+                      id="perSeason"
                       checked={isEpisodesPerSeasonArray}
                       onChange={() => setIsEpisodesPerSeasonArray(true)}
                       className="mr-1"
                     />
-                    Per season
-                  </label>
+                    <label htmlFor="perSeason" className="text-xs cursor-pointer">Per season</label>
+                  </div>
                 </div>
               </div>
               
@@ -320,7 +343,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                   min="1"
                   value={show.episodesPerSeason}
                   onChange={handleChange}
-                  className="w-full p-2 rounded-md border border-input bg-background"
+                  className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                   placeholder="Default: 12"
                 />
               ) : (
@@ -331,22 +354,26 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     type="text"
                     value={show.episodesPerSeason}
                     onChange={handleChange}
-                    className="w-full p-2 rounded-md border border-input bg-background"
+                    className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                     placeholder="e.g. 12,13,24"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Enter comma-separated values, one for each season (e.g., &ldquo;12,13,24&rdquo;)
+                  <p className="text-xs text-muted-foreground flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 mt-0.5">
+                      <polyline points="9 10 4 15 9 20"></polyline>
+                      <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+                    </svg>
+                    Enter comma-separated values, one for each season (e.g., "12,13,24")
                   </p>
                 </div>
               )}
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-3 pt-1">
               <label className="text-sm font-medium">
                 Episode Range
               </label>
-              <div className="grid grid-cols-4 gap-2">
-                <div>
+              <div className="grid sm:grid-cols-4 grid-cols-2 gap-4">
+                <div className="space-y-1">
                   <label htmlFor="startSeason" className="text-xs text-muted-foreground">
                     Start Season
                   </label>
@@ -357,10 +384,10 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     min="1"
                     value={show.startSeason}
                     onChange={handleChange}
-                    className="w-full p-2 rounded-md border border-input bg-background"
+                    className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                   />
                 </div>
-                <div>
+                <div className="space-y-1">
                   <label htmlFor="startEpisode" className="text-xs text-muted-foreground">
                     Start Episode
                   </label>
@@ -371,10 +398,10 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     min="1"
                     value={show.startEpisode}
                     onChange={handleChange}
-                    className="w-full p-2 rounded-md border border-input bg-background"
+                    className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                   />
                 </div>
-                <div>
+                <div className="space-y-1">
                   <label htmlFor="endSeason" className="text-xs text-muted-foreground">
                     End Season
                   </label>
@@ -385,10 +412,10 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     min="1"
                     value={show.endSeason}
                     onChange={handleChange}
-                    className="w-full p-2 rounded-md border border-input bg-background"
+                    className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                   />
                 </div>
-                <div>
+                <div className="space-y-1">
                   <label htmlFor="endEpisode" className="text-xs text-muted-foreground">
                     End Episode
                   </label>
@@ -399,54 +426,62 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     min="1"
                     value={show.endEpisode}
                     onChange={handleChange}
-                    className="w-full p-2 rounded-md border border-input bg-background"
+                    className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                   />
                 </div>
               </div>
             </div>
             
-            <div className="space-y-2">
-              <label htmlFor="quality" className="text-sm font-medium">
-                Quality
-              </label>
-              <select
-                id="quality"
-                name="quality"
-                value={show.quality}
-                onChange={handleChange}
-                className="w-full p-2 rounded-md border border-input bg-background"
-              >
-                <option value="1080p">1080p</option>
-                <option value="720p">720p</option>
-                <option value="480p">480p</option>
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="status" className="text-sm font-medium">
-                Status
-              </label>
-              <select
-                id="status"
-                name="status"
-                value={show.status}
-                onChange={handleChange}
-                className="w-full p-2 rounded-md border border-input bg-background"
-              >
-                <option value="ongoing">Ongoing</option>
-                <option value="completed">Completed</option>
-                <option value="paused">Paused</option>
-              </select>
+            <div className="grid sm:grid-cols-2 gap-6 pt-1">
+              <div className="space-y-2">
+                <label htmlFor="quality" className="text-sm font-medium">
+                  Quality
+                </label>
+                <select
+                  id="quality"
+                  name="quality"
+                  value={show.quality}
+                  onChange={handleChange}
+                  className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
+                >
+                  <option value="1080p">1080p</option>
+                  <option value="720p">720p</option>
+                  <option value="480p">480p</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="status" className="text-sm font-medium">
+                  Status
+                </label>
+                <select
+                  id="status"
+                  name="status"
+                  value={show.status}
+                  onChange={handleChange}
+                  className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
+                >
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                  <option value="paused">Paused</option>
+                </select>
+              </div>
             </div>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={loading}>
+          <div className="border-t border-border my-1" />
+          <CardFooter className="pt-4 pb-4 flex justify-end">
+            <Button 
+              type="submit" 
+              disabled={loading} 
+              className="relative overflow-hidden group"
+            >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" />
               )}
-              {isEditing ? 'Update Show' : 'Add Show'}
+              <span>{isEditing ? 'Update Show' : 'Add Show'}</span>
+              <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Button>
           </CardFooter>
         </form>

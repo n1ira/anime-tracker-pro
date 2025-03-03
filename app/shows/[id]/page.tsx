@@ -1,5 +1,4 @@
 import { ShowDetail } from '@/app/components/ShowDetail';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { notFound } from 'next/navigation';
 
 export default function ShowDetailPage({ params }: { params: { id: string } }) {
@@ -11,11 +10,8 @@ export default function ShowDetailPage({ params }: { params: { id: string } }) {
   }
   
   return (
-    <main className="container mx-auto py-6 px-4">
-      <div className="flex justify-end mb-4">
-        <ThemeToggle />
-      </div>
+    <div className="container mx-auto px-4">
       <ShowDetail showId={showId} />
-    </main>
+    </div>
   );
 } 
