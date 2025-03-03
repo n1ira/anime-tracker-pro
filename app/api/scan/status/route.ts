@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { scanStateTable, showsTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 // Define types for our cache
 interface ScanStateResponse {
@@ -13,8 +14,6 @@ interface ScanStateResponse {
   currentShow: {
     id: number;
     title: string;
-    currentEpisode: number | null;
-    totalEpisodes: number | null;
   } | null;
 }
 
@@ -89,6 +88,24 @@ export async function GET() {
     
     console.log('DEBUG: Cache expired or not set, fetching fresh scan state from database');
     
+    // Try to initialize scan state table if it doesn't exist
+    try {
+      // Check for existing scan state
+      const existingScanState = await db.select({ count: sql`count(*)` }).from(scanStateTable);
+      if (!existingScanState || existingScanState.length === 0 || existingScanState[0].count === 0) {
+        console.log('DEBUG: No scan state found in status endpoint, initializing');
+        await db.insert(scanStateTable).values({
+          isScanning: false,
+          status: 'idle',
+          currentShowId: null
+        });
+        console.log('DEBUG: Successfully initialized scan state table from status endpoint');
+      }
+    } catch (initError) {
+      console.error('WARNING: Error checking/initializing scan state table:', initError);
+      // Continue processing and handle errors below if needed
+    }
+    
     // Get the current scan state with only the fields we need
     const scanState = await db.select({
       id: scanStateTable.id,
@@ -100,12 +117,19 @@ export async function GET() {
     .from(scanStateTable)
     .limit(1);
     
-    if (scanState.length === 0) {
+    if (!scanState || scanState.length === 0) {
       // Initialize scan state if it doesn't exist
+      console.log('DEBUG: No scan state found, creating a new one');
       const newScanState = await db.insert(scanStateTable).values({
         isScanning: false,
         status: 'idle',
+        currentShowId: null
       }).returning();
+      
+      if (!newScanState || newScanState.length === 0) {
+        console.error('DEBUG: Failed to create new scan state');
+        return NextResponse.json({ error: 'Failed to initialize scan state' }, { status: 500 });
+      }
       
       const response: ScanStateResponse = {
         ...newScanState[0],
@@ -125,18 +149,16 @@ export async function GET() {
     
     // If there's a current show ID, get only the necessary show details
     let currentShow = null;
-    if (scanState[0].currentShowId) {
+    if (scanState[0] && scanState[0].currentShowId) {
       const show = await db.select({
         id: showsTable.id,
-        title: showsTable.title,
-        currentEpisode: showsTable.currentEpisode,
-        totalEpisodes: showsTable.totalEpisodes
+        title: showsTable.title
       })
       .from(showsTable)
       .where(eq(showsTable.id, scanState[0].currentShowId))
       .limit(1);
       
-      if (show.length > 0) {
+      if (show && show.length > 0) {
         currentShow = show[0];
       }
     }
@@ -167,6 +189,40 @@ export async function GET() {
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching scan status:', error);
-    return NextResponse.json({ error: 'Failed to fetch scan status' }, { status: 500 });
+    
+    // Return a default scan state in case of errors
+    const defaultState: ScanStateResponse = {
+      id: 1,
+      isScanning: false,
+      status: 'Error recovering',
+      currentShowId: null,
+      startedAt: null,
+      currentShow: null
+    };
+    
+    // Attempt to reset the scan state in the database
+    try {
+      await db.insert(scanStateTable).values({
+        isScanning: false,
+        status: 'Reset after error',
+        currentShowId: null
+      }).onConflictDoUpdate({
+        target: scanStateTable.id,
+        set: {
+          isScanning: false,
+          status: 'Reset after error',
+          currentShowId: null
+        }
+      });
+      
+      console.log('DEBUG: Reset scan state after error');
+    } catch (resetError) {
+      console.error('Failed to reset scan state after error:', resetError);
+    }
+    
+    // Invalidate cache to force a refresh next time
+    invalidateCache();
+    
+    return NextResponse.json(defaultState, { status: 200 });
   }
 } 

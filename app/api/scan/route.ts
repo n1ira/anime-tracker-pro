@@ -4,6 +4,7 @@ import { scanStateTable, showsTable, episodesTable, logsTable } from '@/db/schem
 import { eq, and, isNull, lte } from 'drizzle-orm';
 import { invalidateCache } from './status/route';
 import { getSeasonAndEpisode } from '@/app/utils/episodeCalculator';
+import { sql } from 'drizzle-orm';
 
 // Helper function to create a log and return it
 async function createLog(message: string, level: string = 'info') {
@@ -29,13 +30,33 @@ async function createLog(message: string, level: string = 'info') {
 
 export async function GET() {
   try {
+    // Try to initialize scan state table if it doesn't exist
+    try {
+      // Check for existing scan state
+      const existingScanState = await db.select({ count: sql`count(*)` }).from(scanStateTable);
+      if (!existingScanState || existingScanState.length === 0 || existingScanState[0].count === 0) {
+        console.log('DEBUG: No scan state found in GET endpoint, initializing');
+        await db.insert(scanStateTable).values({
+          isScanning: false,
+          status: 'idle',
+          currentShowId: null
+        });
+        console.log('DEBUG: Successfully initialized scan state table from GET endpoint');
+      }
+    } catch (initError) {
+      console.error('WARNING: Error checking/initializing scan state table in GET endpoint:', initError);
+      // Continue processing and handle errors below if needed
+    }
+    
     const scanState = await db.select().from(scanStateTable).limit(1);
     
-    if (scanState.length === 0) {
+    if (!scanState || scanState.length === 0) {
       // Initialize scan state if it doesn't exist
+      console.log('DEBUG: No scan state found even after initialization attempt, creating a new one');
       const newScanState = await db.insert(scanStateTable).values({
         isScanning: false,
         status: 'idle',
+        currentShowId: null
       }).returning();
       
       return NextResponse.json(newScanState[0]);
@@ -45,7 +66,15 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching scan state:', error);
     await createLog(`Error fetching scan state: ${error}`, 'error');
-    return NextResponse.json({ error: 'Failed to fetch scan state' }, { status: 500 });
+    
+    // Return a default safe state in case of errors
+    return NextResponse.json({
+      id: 1,
+      isScanning: false,
+      status: 'Error recovering from database issue',
+      currentShowId: null,
+      startedAt: null
+    }, { status: 200 }); // Return 200 to avoid cascading failures
   }
 }
 
@@ -56,6 +85,24 @@ export async function POST(request: Request) {
     const origin = request.headers.get('origin') || '';
     
     console.log('DEBUG: POST /api/scan received:', JSON.stringify(body));
+    
+    // Try to initialize scan state table if it doesn't exist
+    try {
+      // Check for existing scan state
+      const existingScanState = await db.select({ count: sql`count(*)` }).from(scanStateTable);
+      if (!existingScanState || existingScanState.length === 0 || existingScanState[0].count === 0) {
+        console.log('DEBUG: No scan state found, attempting to initialize');
+        await db.insert(scanStateTable).values({
+          isScanning: false,
+          status: 'idle',
+          currentShowId: null
+        });
+        console.log('DEBUG: Successfully initialized scan state table');
+      }
+    } catch (initError) {
+      console.error('WARNING: Error initializing scan state table:', initError);
+      // Continue processing since the select below will handle missing state
+    }
     
     // Get the current scan state
     const currentState = await db.select().from(scanStateTable).limit(1);
@@ -152,12 +199,15 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       
       // Update scan state to idle only if not part of a batch scan
       if (!isPartOfBatchScan) {
+        // Get the current scan state to use its actual ID
+        const currentStateData = await db.select().from(scanStateTable).limit(1);
         await db.update(scanStateTable)
           .set({
             isScanning: false,
-            status: 'idle',
+            status: 'Scan completed',
+            currentShowId: null,
           })
-          .where(eq(scanStateTable.id, 1));
+          .where(eq(scanStateTable.id, currentStateData[0].id));
           
         console.log(`DEBUG: Show with ID ${showId} not found, updated scan state to idle`);
       }
@@ -173,13 +223,6 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       .where(eq(episodesTable.showId, showId))
       .orderBy(episodesTable.episodeNumber);
     
-    // Create a Set of downloaded episode numbers for efficient lookups
-    const downloadedEpisodeSet = new Set(
-      allEpisodes
-        .filter(ep => ep.isDownloaded)
-        .map(ep => ep.episodeNumber)
-    );
-    
     // Parse episodesPerSeason
     let episodesPerSeason: number | number[] = 12;
     if (show[0].episodesPerSeason) {
@@ -190,6 +233,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         } else {
           episodesPerSeason = parseInt(show[0].episodesPerSeason, 10) || 12;
         }
+        console.log(`DEBUG: Parsed episodesPerSeason for "${show[0].title}":`, JSON.stringify(episodesPerSeason));
       } catch (e) {
         episodesPerSeason = parseInt(show[0].episodesPerSeason, 10) || 12;
       }
@@ -197,7 +241,14 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     
     // Helper function to calculate absolute episode number
     const calculateAbsoluteEpisode = (season: number, episode: number): number => {
+      console.log(`DEBUG: calculateAbsoluteEpisode for ${show[0].title}, S${season}E${episode}`);
+      
       if (Array.isArray(episodesPerSeason)) {
+        console.log(`DEBUG: episodesPerSeason data: ${JSON.stringify({[show[0].title]: {episodes_per_season: episodesPerSeason}})}`);
+        console.log(`DEBUG: epsData for ${show[0].title}: ${JSON.stringify(episodesPerSeason)}`);
+        console.log(`DEBUG: Array format. Seasons before current (${season}): ${JSON.stringify(episodesPerSeason.slice(0, season - 1))}`);
+        console.log(`DEBUG: Episodes per season data: ${JSON.stringify(episodesPerSeason)}`);
+        
         let absoluteEpisode = 0;
         for (let s = 1; s < season; s++) {
           const seasonEps = s <= episodesPerSeason.length 
@@ -205,9 +256,15 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
             : (episodesPerSeason[episodesPerSeason.length - 1] || 12);
           absoluteEpisode += seasonEps;
         }
+        
+        console.log(`DEBUG: Sum of episodes in previous seasons: ${absoluteEpisode}`);
+        console.log(`DEBUG: Final absolute episode: ${absoluteEpisode + episode} (${absoluteEpisode} + ${episode})`);
+        
         return absoluteEpisode + episode;
       } else {
-        return (season - 1) * episodesPerSeason + episode;
+        const result = (season - 1) * episodesPerSeason + episode;
+        console.log(`DEBUG: Fixed format. Calculation: (${season} - 1) * ${episodesPerSeason} + ${episode} = ${result}`);
+        return result;
       }
     };
     
@@ -230,33 +287,42 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     );
     
     // Count downloaded episodes in range
-    const downloadedCount = episodesInRange.filter(ep => ep.isDownloaded).length;
+    const downloadedEpisodes = episodesInRange.filter(ep => ep.isDownloaded);
+    const downloadedCount = downloadedEpisodes.length;
     
-    // Find the highest downloaded episode number
-    let highestDownloaded = 0;
-    for (const episode of episodesInRange) {
-      if (episode.isDownloaded && episode.episodeNumber > highestDownloaded) {
+    // Find the highest downloaded episode number within our range
+    let highestDownloaded = minEpisode - 1; // Start from just before the range if nothing downloaded
+    for (const episode of downloadedEpisodes) {
+      if (episode.episodeNumber > highestDownloaded) {
         highestDownloaded = episode.episodeNumber;
       }
     }
     
     // Log the scan details
-    await createLog(`Scanning ${show[0].title}: ${downloadedCount}/${episodesInRange.length} episodes downloaded, current episode is ${highestDownloaded}`);
+    await createLog(`Scanning ${show[0].title}: ${downloadedCount}/${episodesInRange.length} episodes downloaded`);
     
-    // Search for the next episode after the highest downloaded one
-    let nextEpisodeToScan = highestDownloaded + 1;
+    // Find the next episode to scan after the highest downloaded one
+    const nextEpisodeToScan = highestDownloaded + 1;
     
     // If we've reached the max episode in our range, we're done
     if (nextEpisodeToScan > maxEpisode) {
       await createLog(`All episodes in range have been scanned for ${show[0].title}`, 'success');
       
-      // Mark scan complete
-      await db.update(scanStateTable)
-        .set({
-          isScanning: isPartOfBatchScan, // Keep scanning if part of batch
-          status: `Scan completed for ${show[0].title}`,
-        })
-        .where(eq(scanStateTable.id, 1));
+      // Update scan state
+      if (!isPartOfBatchScan) {
+        // Get the current scan state to use its actual ID
+        const currentStateData = await db.select().from(scanStateTable).limit(1);
+        await db.update(scanStateTable)
+          .set({
+            isScanning: false,
+            status: `Scan completed for ${show[0].title}`,
+            currentShowId: null,
+          })
+          .where(eq(scanStateTable.id, currentStateData[0].id));
+        
+        // Explicitly invalidate the cache to ensure frontend gets fresh data
+        invalidateCache();
+      }
       
       // Update the show's last scanned timestamp
       await db.update(showsTable)
@@ -268,6 +334,22 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
       await createLog(`Scan completed for ${show[0].title}`, 'success');
       return true;
     }
+    
+    // Calculate season and episode for the next episode to scan
+    const nextEpisodeInfo = getSeasonAndEpisode(nextEpisodeToScan, show[0].title, { 
+      [show[0].title]: { episodes_per_season: episodesPerSeason } 
+    });
+    
+    // Update scan state to show the next episode we're looking for
+    const currentState = await db.select().from(scanStateTable)
+      .limit(1);
+    
+    await db.update(scanStateTable)
+      .set({
+        currentShowId: showId,
+        status: `Searching for ${show[0].title} - S${nextEpisodeInfo.season}E${nextEpisodeInfo.episode} (absolute #${nextEpisodeToScan})`,
+      })
+      .where(eq(scanStateTable.id, currentState[0].id));
     
     // Let's start scanning from the next episode
     let consecutiveFailures = 0;
@@ -284,7 +366,9 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
         return false;
       }
       
-      if (downloadedEpisodeSet.has(absoluteEpisode)) {
+      // Check if this episode is already downloaded
+      const isAlreadyDownloaded = downloadedEpisodes.some(ep => ep.episodeNumber === absoluteEpisode);
+      if (isAlreadyDownloaded) {
         continue; // Skip already downloaded episodes
       }
       
@@ -416,17 +500,17 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     
     // Update scan state to idle only if not part of a batch scan
     if (!isPartOfBatchScan) {
+      // Get the current scan state to use its actual ID
       const currentStateData = await db.select().from(scanStateTable).limit(1);
-      const updatedState = await db.update(scanStateTable)
+      await db.update(scanStateTable)
         .set({
           isScanning: false,
-          status: 'idle',
+          status: 'Scan completed',
           currentShowId: null,
         })
-        .where(eq(scanStateTable.id, currentStateData[0].id))
-        .returning();
+        .where(eq(scanStateTable.id, currentStateData[0].id));
         
-      console.log(`DEBUG: Updated scan state after completing show scan:`, JSON.stringify(updatedState[0]));
+      console.log(`DEBUG: Updated scan state after completing show scan:`, JSON.stringify(currentStateData[0]));
       
       // Explicitly invalidate the cache to ensure frontend gets fresh data
       invalidateCache();
@@ -442,6 +526,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
     
     // Update scan state to error only if not part of a batch scan
     if (!isPartOfBatchScan) {
+      // Get the current scan state to use its actual ID
       const currentStateData = await db.select().from(scanStateTable).limit(1);
       const errorState = await db.update(scanStateTable)
         .set({
@@ -449,8 +534,7 @@ async function scanShow(showId: number, origin: string, isPartOfBatchScan: boole
           status: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           currentShowId: null,
         })
-        .where(eq(scanStateTable.id, currentStateData[0].id))
-        .returning();
+        .where(eq(scanStateTable.id, currentStateData[0].id));
         
       console.log(`DEBUG: Updated scan state after error:`, JSON.stringify(errorState[0]));
       
