@@ -14,14 +14,14 @@ Transform the existing Python anime tracker application into a modern web app us
 - [x] Use Windows CMD (e.g., with `curl`) to make a basic API call confirming Supabase connectivity.
 
 ## Step 2: Backend API Development - Core Data Models & Endpoints
-- [ ] Define database schemas for tracked shows, logs, and scanning state in Supabase using drizzle.
-- [ ] Implement API endpoints for CRUD operations on tracked shows.
-- [ ] Build initial endpoints for fetching and updating logs.
+- [x] Define database schemas for tracked shows, logs, and scanning state in Supabase using drizzle.
+- [x] Implement API endpoints for CRUD operations on tracked shows.
+- [x] Build initial endpoints for fetching and updating logs.
 
 ### Bug Check (Step 2)
-- [ ] Test API endpoints via Windows CMD (using tools like `curl`) to confirm expected responses.
-- [ ] Check that the Supabase tables are created and populated correctly.
-- [ ] Validate CRUD operations by creating, reading, updating, and deleting test entries.
+- [x] Test API endpoints via Windows CMD (using tools like `curl`) to confirm expected responses.
+- [x] Check that the Supabase tables are created and populated correctly.
+- [x] Validate CRUD operations by creating, reading, updating, and deleting test entries.
 
 ## Step 3: Implement Core Torrent Search & Download Logic on Backend
 - [ ] Integrate the existing Python torrent search logic into the backend API.
