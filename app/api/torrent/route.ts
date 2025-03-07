@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       console.error('Error parsing alternateNames:', e);
     }
     
-    let results: Array<{ title: string; magnetLink: string }> = [];
+    let results: Array<{ title: string; magnetLink: string; seeders: number }> = [];
     
     // Try each search query
     for (const query of searchQueries) {
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
         // Parse the HTML response
         const $ = cheerio.load(response.data);
-        const searchResults: Array<{ title: string; magnetLink: string }> = [];
+        const searchResults: Array<{ title: string; magnetLink: string; seeders: number }> = [];
 
         // Process each row in the results table
         $('tr.danger, tr.default, tr.success').each((_, row) => {
@@ -127,12 +127,16 @@ export async function POST(request: Request) {
           const title = titleAnchor.text().trim();
           const magnetTag = $(row).find('a[href^="magnet:"]');
           if (!magnetTag.length) return;
+          
+          // Extract seeders count (7th td element - index 6)
+          const seeders = parseInt($(row).find('td').eq(6).text().trim(), 10) || 0;
 
           const magnetLink = magnetTag.attr('href') || '';
           
           searchResults.push({
             title,
-            magnetLink
+            magnetLink,
+            seeders // Add seeders to the result
           });
         });
 
@@ -169,7 +173,7 @@ export async function POST(request: Request) {
     });
     
     // Parse titles and filter valid episodes
-    const parsedResults: Array<{ title: string; magnetLink: string; quality: string; size: string }> = [];
+    const parsedResults: Array<{ title: string; magnetLink: string; quality: string; size: string; seeders: number }> = [];
     
     for (const result of results) {
       try {
@@ -187,7 +191,8 @@ export async function POST(request: Request) {
             title: result.title,
             magnetLink: result.magnetLink,
             quality: quality,
-            size: 'unknown' // Since we don't have size in the result object
+            size: 'unknown',
+            seeders: result.seeders || 0 // Include seeders
           });
         }
       } catch (error) {
@@ -219,7 +224,8 @@ export async function POST(request: Request) {
             title: result.title,
             magnetLink: result.magnetLink,
             quality: quality,
-            size: 'unknown' // Since we don't have size in the result object
+            size: 'unknown',
+            seeders: result.seeders || 0 // Include seeders here too
           });
         }
       }
@@ -232,7 +238,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "No matches found" }, { status: 404 });
     }
     
-    // Sort by quality (1080p > 720p > 480p > unknown)
+    // Sort by seeders first, then by quality
     parsedResults.sort((a, b) => {
       const qualityOrder: { [key: string]: number } = {
         '1080p': 3,
@@ -241,6 +247,12 @@ export async function POST(request: Request) {
         'unknown': 0
       };
       
+      // First prioritize by seeders count (higher is better)
+      if (b.seeders !== a.seeders) {
+        return b.seeders - a.seeders;
+      }
+      
+      // If seeders are equal, then sort by quality
       return (qualityOrder[b.quality] || 0) - (qualityOrder[a.quality] || 0);
     });
     

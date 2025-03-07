@@ -421,9 +421,23 @@ export function ShowDetail({ showId }: ShowDetailProps) {
                                 {episode.magnetLink && (
                                   <div className="mt-2">
                                     <a 
-                                      href={episode.magnetLink}
+                                      href="#"
                                       className="text-xs text-blue-500 hover:underline"
-                                      onClick={(e) => e.stopPropagation()}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        
+                                        if (episode.magnetLink) {
+                                          // Try to open the magnet link
+                                          const opened = window.open(episode.magnetLink);
+                                          
+                                          // If window.open returns null or undefined, or browser blocks it
+                                          if (!opened) {
+                                            // Fallback to location.href
+                                            window.location.href = episode.magnetLink;
+                                          }
+                                        }
+                                      }}
                                     >
                                       Open Magnet Link
                                     </a>
