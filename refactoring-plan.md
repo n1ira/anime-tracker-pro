@@ -2,7 +2,7 @@
 
 This document outlines a plan to simplify and refactor the Anime Tracker Pro project, identifying areas where code can be removed, refactored, or restructured for better maintainability and performance.
 
-## Current Project Structure
+## Project Structure Before Refactoring started
 
 ```
 .
@@ -20,11 +20,11 @@ This document outlines a plan to simplify and refactor the Anime Tracker Pro pro
 │   │   ├── scan/
 │   │   │   ├── events/
 │   │   │   │   └── route.ts
-│   │   │   ├── status/
-│   │   │   │   └── route.ts
-│   │   │   ├── stop/
-│   │   │   │   └── route.ts
-│   │   │   └── route.ts (674 lines)
+│   │   ├── status/
+│   │   │   └── route.ts
+│   │   ├── stop/
+│   │   │   └── route.ts
+│   │   └── route.ts (674 lines)
 │   │   ├── scanner/
 │   │   │   └── status/
 │   │   │       └── route.ts
@@ -212,19 +212,19 @@ This document outlines a plan to simplify and refactor the Anime Tracker Pro pro
 
 ### 6. Utility Functions and Hooks
 
-- [ ] **Consolidate Utility Functions**
-  - [ ] Merge lib/utils.ts and app/utils/ into a single utils directory
-  - [ ] Create a standardized utility library
-  - [ ] Move episode calculation logic from API routes to utility functions
-  - [ ] Create shared validation utilities
+- [x] **Consolidate Utility Functions**
+  - [x] Merge lib/utils.ts and app/utils/ into a single utils directory
+  - [x] Create a standardized utility library
+  - [x] Move episode calculation logic from API routes to utility functions
+  - [x] Create shared validation utilities
 
-- [ ] **Optimize Custom Hooks**
-  - [ ] Refactor useLogStream.ts (242 lines) into smaller, focused hooks
-  - [ ] Refactor useScanState.ts (206 lines) into smaller, focused hooks
-  - [ ] Create custom hooks for show data fetching
-  - [ ] Create custom hooks for episode data fetching
-  - [ ] Create custom hooks for scan state management
-  - [ ] Document hook usage and purpose
+- [x] **Optimize Custom Hooks**
+  - [x] Refactor useLogStream.ts (242 lines) into smaller, focused hooks
+  - [x] Refactor useScanState.ts (206 lines) into smaller, focused hooks
+  - [x] Create custom hooks for show data fetching
+  - [x] Create custom hooks for episode data fetching
+  - [x] Create custom hooks for scan state management
+  - [x] Document hook usage and purpose
 
 ### 7. Performance Optimization
 
@@ -520,7 +520,7 @@ As changes are implemented, this section will track progress and update the file
 | 3. Database and Migration Optimization | Completed | Removed unused todos.ts schema file. Consolidated migration files into SQL migrations in a standardized directory structure. Created a new migration runner using Drizzle. Removed standalone migration scripts. Updated documentation in README.md. |
 | 4. Frontend Simplification | Completed | Extracted components from ShowDetail.tsx (ShowHeader, EpisodeItem, SeasonEpisodeList, ShowActions), ShowForm.tsx (FormFields, ValidationLogic, SubmitHandler), LogViewer.tsx (LogFilterControls, LogEntry, LogPagination), ShowsList.tsx (ShowListItem, ShowListFilters, ShowListPagination), and EpisodesPerSeasonEditor.tsx (EditorModal, SeasonBreakdown). Created reusable UI components (LoadingState, EmptyState, SectionHeader, FormField, ShowCard) and implemented React contexts (ScanContext, ShowsContext, LogsContext) to avoid prop drilling. |
 | 5. API Route Optimization | Completed | Refactored scan/route.ts (674 lines) into smaller, focused modules: scanService.ts for scanning logic, torrentParser.ts for torrent parsing, episodeCalculator.ts for episode calculation, and logging.ts for logging functionality. Implemented proper error handling with a responseHandler utility. Added request validation. Consolidated duplicate API endpoints (torrent/search and torrent/test) to use the same underlying service. |
-| 6. Utility Functions and Hooks | Not Started | |
+| 6. Utility Functions and Hooks | Completed | Consolidated utility functions by moving them from app/utils to lib/utils with a standardized structure. Refactored useLogStream.ts into smaller hooks (useLogFetch, useLogFilter, useLogStream). Refactored useScanState.ts into smaller hooks (useScanStatus, useScanControl, useScanState). Created custom hooks for show data (useShowData) and episode data (useEpisodeData). Created proper type definitions and organized hooks by domain. |
 | 7. Performance Optimization | Not Started | |
 | 8. Code Quality and Standards | Not Started | |
 | 9. Documentation | Not Started | |
