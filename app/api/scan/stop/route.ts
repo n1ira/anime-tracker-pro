@@ -1,54 +1,30 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db/db';
-import { scanStateTable, logsTable } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { getScanState, updateScanState } from '@/app/services/scanService';
+import { logInfo } from '@/app/utils/logging';
+import { 
+  successResponse, 
+  errorResponse, 
+  withErrorHandling 
+} from '@/app/utils/api/responseHandler';
 
+/**
+ * POST endpoint to stop a scan
+ */
 export async function POST() {
-  try {
-    console.log('DEBUG: POST /api/scan/stop called');
+  return withErrorHandling(async () => {
+    await logInfo('POST /api/scan/stop - Stopping scan');
     
     // Get the current scan state
-    const currentState = await db.select().from(scanStateTable).limit(1);
-    console.log('DEBUG: Current scan state:', JSON.stringify(currentState[0]));
+    const scanState = await getScanState();
     
-    if (currentState.length === 0 || !currentState[0].isScanning) {
-      // No scan in progress
-      console.log('DEBUG: No scan in progress to stop');
-      return NextResponse.json({ message: 'No scan in progress' });
+    // Check if a scan is in progress
+    if (!scanState.isScanning) {
+      return errorResponse('No scan is currently in progress', 400);
     }
     
-    // Update scan state to stop scanning
-    const updatedState = await db.update(scanStateTable)
-      .set({
-        isScanning: false,
-        status: 'stopped',
-        currentShowId: null,
-      })
-      .where(eq(scanStateTable.id, currentState[0].id))
-      .returning();
+    // Update scan state to idle
+    await updateScanState(false, 'Scan stopped by user', null);
     
-    console.log('DEBUG: Updated scan state to stopped:', JSON.stringify(updatedState[0]));
-    
-    // Log the stop action
-    await db.insert(logsTable).values({
-      message: 'Scan stopped by user',
-      level: 'warning',
-      createdAt: new Date(),
-    });
-    
-    console.log('Scan state changed: isScanning = false, status = stopped');
-    
-    return NextResponse.json(updatedState[0]);
-  } catch (error) {
-    console.error('Error stopping scan:', error);
-    
-    // Log the error
-    await db.insert(logsTable).values({
-      message: `Error stopping scan: ${error}`,
-      level: 'error',
-      createdAt: new Date(),
-    });
-    
-    return NextResponse.json({ error: 'Failed to stop scan' }, { status: 500 });
-  }
+    return successResponse({ isScanning: false }, 'Scan stopped successfully');
+  }, 'Failed to stop scan');
 } 

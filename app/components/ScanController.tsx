@@ -19,19 +19,27 @@ export function ScanController() {
   };
 
   const getStatusColor = () => {
-    if (!scanState) return 'bg-secondary text-secondary-foreground';
+    if (!scanState || !scanState.status) return 'bg-secondary text-secondary-foreground';
     
-    switch (scanState.status.toLowerCase()) {
-      case 'idle':
-        return 'bg-secondary text-secondary-foreground';
-      case 'error':
-        return 'bg-destructive text-destructive-foreground';
-      case 'stopped':
-        return 'bg-warning text-warning-foreground';
-      default:
-        return scanState.isScanning 
-          ? 'bg-primary text-primary-foreground' 
-          : 'bg-secondary text-secondary-foreground';
+    try {
+      const statusLower = scanState.status.toLowerCase();
+      
+      switch (statusLower) {
+        case 'idle':
+          return 'bg-secondary text-secondary-foreground';
+        case 'error':
+          return 'bg-destructive text-destructive-foreground';
+        case 'stopped':
+          return 'bg-warning text-warning-foreground';
+        default:
+          return scanState.isScanning 
+            ? 'bg-primary text-primary-foreground' 
+            : 'bg-secondary text-secondary-foreground';
+      }
+    } catch (err) {
+      // If there's any error processing the status, return a default
+      console.error('Error processing scan status:', err);
+      return 'bg-secondary text-secondary-foreground';
     }
   };
 
@@ -46,7 +54,7 @@ export function ScanController() {
             <span className="font-medium">Status:</span>
             {scanState ? (
               <Badge className={getStatusColor()}>
-                {scanState.status}
+                {scanState.status || 'Unknown'}
               </Badge>
             ) : (
               <Badge variant="outline">Unknown</Badge>

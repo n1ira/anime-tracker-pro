@@ -34,6 +34,7 @@ export async function GET() {
                 cleanup();
               }
               clients.delete(clientId);
+              console.log(`Client ${clientId} removed due to closed controller`);
             }
             return;
           }
@@ -53,8 +54,22 @@ export async function GET() {
         }
       };
       
+      // Check if client is still connected
+      const isClientConnected = () => {
+        try {
+          return controller.desiredSize !== null && clients.has(clientId);
+        } catch (error) {
+          return false;
+        }
+      };
+      
       // Event listener for log events
       const logListener = async () => {
+        // Skip if client is no longer active
+        if (!isClientConnected()) {
+          return;
+        }
+        
         try {
           // Get the latest log entry
           const logs = await db.select()
@@ -62,30 +77,70 @@ export async function GET() {
             .orderBy(desc(logsTable.createdAt))
             .limit(1);
           
+          // Check again if client is still active after the async operation
+          if (!isClientConnected()) {
+            return;
+          }
+          
           if (logs.length > 0) {
             const log = logs[0];
             
-            // Check if this is an episode found log
-            if (log.level === 'success' && log.message.includes('Match Found:')) {
-              // Extract show ID, season, and episode from the log message if possible
-              // This is a simplified example - you might need more complex parsing
-              const match = log.message.match(/for (\d+) S(\d+)E(\d+)/);
-              if (match) {
-                const [, showId, season, episode] = match.map(Number);
-                sendEvent('episodeFound', { showId, season, episode });
+            // Only if client is still connected after the check
+            if (isClientConnected()) {
+              // Check if this is an episode found log
+              if (log.level === 'success' && log.message.includes('Match Found:')) {
+                // Extract show ID, season, and episode from the log message if possible
+                // This is a simplified example - you might need more complex parsing
+                const match = log.message.match(/for (\d+) S(\d+)E(\d+)/);
+                if (match) {
+                  const [, showId, season, episode] = match.map(Number);
+                  sendEvent('episodeFound', { showId, season, episode });
+                }
               }
+              
+              // Send the log event
+              sendEvent('log', log);
             }
-            
-            // Send the log event
-            sendEvent('log', log);
           }
         } catch (error) {
           console.error('Error fetching logs:', error);
+          
+          // If there's an error, we should clean up this client to avoid repeated errors
+          if (clients.has(clientId)) {
+            const cleanup = clients.get(clientId);
+            if (typeof cleanup === 'function') {
+              cleanup();
+            }
+            clients.delete(clientId);
+            console.log(`Client ${clientId} removed due to error`);
+          }
         }
       };
       
       // Set up interval to check for new logs
-      const intervalId = setInterval(logListener, 2000);
+      const intervalId = setInterval(() => {
+        // Skip if client is no longer connected
+        if (!isClientConnected()) {
+          // Clean up if controller is closed
+          if (clients.has(clientId)) {
+            clearInterval(intervalId);
+            clients.delete(clientId);
+            console.log(`Client ${clientId} cleanup due to closed controller in interval`);
+          }
+          return;
+        }
+        
+        logListener().catch(error => {
+          console.error(`Error in log listener for client ${clientId}:`, error);
+          
+          // If there's a repeated error, we should stop trying for this client
+          if (clients.has(clientId)) {
+            clearInterval(intervalId);
+            clients.delete(clientId);
+            console.log(`Client ${clientId} cleanup due to repeated errors`);
+          }
+        });
+      }, 2000);
       
       // Store the client's cleanup function
       clients.set(clientId, () => {
@@ -101,8 +156,6 @@ export async function GET() {
     },
     cancel() {
       // This will be called when the client disconnects
-      // We don't have access to the clientId here, so we can't do specific cleanup
-      // The clients will be cleaned up when the server restarts or by a cleanup routine
       console.log('Client disconnected from scan events');
     }
   });

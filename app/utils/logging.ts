@@ -7,14 +7,17 @@ import { logsTable } from '@/db/schema';
 export type LogLevel = 'debug' | 'info' | 'warning' | 'error';
 
 /**
- * Create a log entry in the database and console
+ * Creates a log entry in the database and console
  * @param message The log message
- * @param level The log level
- * @returns Promise that resolves when the log is created
+ * @param level The log level (info, success, error, warning)
+ * @param skipDb If true, the log will only be printed to console but not saved to the database
  */
-export async function createLog(message: string, level: LogLevel = 'info'): Promise<void> {
-  // Skip repetitive logs for frontend display
-  // These will still be logged to the console but not saved to the database
+export async function createLog(
+  message: string, 
+  level: 'info' | 'success' | 'error' | 'warning' = 'info',
+  skipDb: boolean = false
+) {
+  // Skip repetitive logs if they match certain patterns
   const isRepetitiveLog = 
     (message.startsWith('Direct match failed:') || 
      message.startsWith('Comparing episodes for') ||
@@ -22,8 +25,8 @@ export async function createLog(message: string, level: LogLevel = 'info'): Prom
   
   console.log(`${level.toUpperCase()}: ${message}`);
   
-  if (isRepetitiveLog) {
-    return; // Skip saving repetitive logs to the database
+  if (skipDb || isRepetitiveLog) {
+    return; // Skip saving to the database
   }
   
   try {
@@ -46,31 +49,29 @@ export function logDebug(message: string): void {
 }
 
 /**
- * Log an info message and save to database
- * @param message The log message
+ * Logs a message with info level
  */
-export async function logInfo(message: string): Promise<void> {
-  await createLog(message, 'info');
+export function logInfo(message: string, skipDb: boolean = false) {
+  return createLog(message, 'info', skipDb);
 }
 
 /**
- * Log a warning message and save to database
- * @param message The log message
+ * Logs a message with success level
  */
-export async function logWarning(message: string): Promise<void> {
-  await createLog(message, 'warning');
+export function logSuccess(message: string, skipDb: boolean = false) {
+  return createLog(message, 'success', skipDb);
 }
 
 /**
- * Log an error message and save to database
- * @param message The log message
- * @param error Optional error object
+ * Logs a message with error level
  */
-export async function logError(message: string, error?: unknown): Promise<void> {
-  const errorDetails = error instanceof Error ? `: ${error.message}` : '';
-  await createLog(`${message}${errorDetails}`, 'error');
-  
-  if (error) {
-    console.error(error);
-  }
+export function logError(message: string, skipDb: boolean = false) {
+  return createLog(message, 'error', skipDb);
+}
+
+/**
+ * Logs a message with warning level
+ */
+export function logWarning(message: string, skipDb: boolean = false) {
+  return createLog(message, 'warning', skipDb);
 } 

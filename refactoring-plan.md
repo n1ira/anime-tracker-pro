@@ -200,15 +200,15 @@ This document outlines a plan to simplify and refactor the Anime Tracker Pro pro
 
 ### 5. API Route Optimization
 
-- [ ] **Refactor Large API Routes**
-  - [ ] Break down scan/route.ts (674 lines) into smaller, focused modules:
-    - [ ] Create a separate module for scanning logic (scanShow, scanAllShows functions)
-    - [ ] Create a separate module for torrent parsing logic
-    - [ ] Create a separate module for episode calculation logic
-    - [ ] Create a separate module for logging functionality
-  - [ ] Implement proper error handling and logging
-  - [ ] Add request validation
-  - [ ] Consolidate duplicate API endpoints (torrent/search and torrent/test)
+- [x] **Refactor Large API Routes**
+  - [x] Break down scan/route.ts (674 lines) into smaller, focused modules:
+    - [x] Create a separate module for scanning logic (scanShow, scanAllShows functions)
+    - [x] Create a separate module for torrent parsing logic
+    - [x] Create a separate module for episode calculation logic
+    - [x] Create a separate module for logging functionality
+  - [x] Implement proper error handling and logging
+  - [x] Add request validation
+  - [x] Consolidate duplicate API endpoints (torrent/search and torrent/test)
 
 ### 6. Utility Functions and Hooks
 
@@ -519,7 +519,7 @@ As changes are implemented, this section will track progress and update the file
 | 2. Code Structure Cleanup | Completed | Consolidated component directories and moved UI components to app/components/ui/. Created a consolidated scanner API structure. Refactored the large scan/route.ts file into smaller, focused modules and created shared API utilities. |
 | 3. Database and Migration Optimization | Completed | Removed unused todos.ts schema file. Consolidated migration files into SQL migrations in a standardized directory structure. Created a new migration runner using Drizzle. Removed standalone migration scripts. Updated documentation in README.md. |
 | 4. Frontend Simplification | Completed | Extracted components from ShowDetail.tsx (ShowHeader, EpisodeItem, SeasonEpisodeList, ShowActions), ShowForm.tsx (FormFields, ValidationLogic, SubmitHandler), LogViewer.tsx (LogFilterControls, LogEntry, LogPagination), ShowsList.tsx (ShowListItem, ShowListFilters, ShowListPagination), and EpisodesPerSeasonEditor.tsx (EditorModal, SeasonBreakdown). Created reusable UI components (LoadingState, EmptyState, SectionHeader, FormField, ShowCard) and implemented React contexts (ScanContext, ShowsContext, LogsContext) to avoid prop drilling. |
-| 5. API Route Optimization | Not Started | |
+| 5. API Route Optimization | Completed | Refactored scan/route.ts (674 lines) into smaller, focused modules: scanService.ts for scanning logic, torrentParser.ts for torrent parsing, episodeCalculator.ts for episode calculation, and logging.ts for logging functionality. Implemented proper error handling with a responseHandler utility. Added request validation. Consolidated duplicate API endpoints (torrent/search and torrent/test) to use the same underlying service. |
 | 6. Utility Functions and Hooks | Not Started | |
 | 7. Performance Optimization | Not Started | |
 | 8. Code Quality and Standards | Not Started | |

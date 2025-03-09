@@ -96,21 +96,34 @@ export function sendSSEMessage(data: any) {
   clients.forEach((clientRef) => {
     try {
       const controller = clientRef.deref();
-      if (!controller) {
-        // Client has been garbage collected
+      // If the controller has been garbage collected or is closed, mark for removal
+      if (!controller || controller.desiredSize === null) {
         clientsToRemove.add(clientRef);
         return;
       }
       
-      // Check if the controller is still usable before trying to send
-      // This helps avoid the "Controller is already closed" error
-      if (controller.desiredSize === null) {
+      // Extra check - try to access desiredSize which will throw if controller is closed
+      try {
+        // This will throw if the controller is already closed
+        const size = controller.desiredSize;
+        if (size === null) {
+          clientsToRemove.add(clientRef);
+          return;
+        }
+      } catch (err) {
+        // If accessing desiredSize throws, the controller is in an invalid state
         clientsToRemove.add(clientRef);
         return;
       }
       
-      controller.enqueue(encoded);
-      activeClients++; // Count only successful sends
+      // If we got here, the controller should be valid
+      try {
+        controller.enqueue(encoded);
+        activeClients++; // Count only successful sends
+      } catch (err) {
+        console.error('Error enqueueing message:', err);
+        clientsToRemove.add(clientRef);
+      }
     } catch (error) {
       console.error('Error sending SSE message to client:', error);
       clientsToRemove.add(clientRef);
@@ -118,10 +131,14 @@ export function sendSSEMessage(data: any) {
   });
   
   // Remove any stale clients we found during this operation
-  clientsToRemove.forEach(ref => {
-    clients.delete(ref);
-    clientConnectTimes.delete(ref);
-  });
+  if (clientsToRemove.size > 0) {
+    clientsToRemove.forEach(ref => {
+      clients.delete(ref);
+      clientConnectTimes.delete(ref);
+    });
+    
+    console.log(`Removed ${clientsToRemove.size} stale clients. Remaining clients: ${clients.size}`);
+  }
   
   // Log message sent - use activeClients for accuracy
   if (activeClients > 0) {
@@ -187,7 +204,7 @@ async function pollForNewLogs() {
     
     // After cleanup, check again if we have clients
     if (clients.size === 0) {
-      console.log('No active clients after cleanup, pausing polling');
+      console.log('No clients left after polling, stopping polling cycle');
       pollingTimeoutRef = null;
       isPolling = false;
       return;
@@ -204,90 +221,80 @@ async function pollForNewLogs() {
       lastLogId = newLogs[newLogs.length - 1].id;
       console.log(`Fetched ${newLogs.length} new logs. Updated lastLogId to ${lastLogId}`);
       
-      // Dynamically import the summarizeLogs function to avoid circular imports
-      const { summarizeLogs } = await import('../route');
-      
-      // Generate summaries from the new logs
-      let summaryData: any[] = [];
       try {
-        summaryData = summarizeLogs(newLogs);
-      } catch (error) {
-        console.error('Error generating summaries:', error);
-      }
-      
-      // Send logs and summaries to clients - double-check we still have clients
-      if (clients.size > 0) {
-        // If we have too many logs, handle them in batches
-        if (newLogs.length > 10) {
-          // First send just the summaries
-          sendSSEMessage({
-            type: 'summaries_update',
-            summaries: summaryData
-          });
-          
-          // Then send logs in smaller batches
-          const batchSize = 5;
-          for (let i = 0; i < newLogs.length && clients.size > 0; i += batchSize) {
-            const batch = newLogs.slice(i, i + batchSize);
-            sendSSEMessage({ 
+        // Dynamically import the summarizeLogs function to avoid circular imports
+        const { summarizeLogs } = await import('../route');
+        
+        // Generate summaries from the new logs
+        const summaryData = summarizeLogs(newLogs);
+        
+        // Check if we still have clients after the async operations
+        let activeClients = 0;
+        clients.forEach(clientRef => {
+          const controller = clientRef.deref();
+          if (controller && controller.desiredSize !== null) {
+            activeClients++;
+          }
+        });
+        
+        // Only send data if we still have active clients
+        if (activeClients > 0) {
+          // If we have too many logs, handle them in batches
+          if (newLogs.length > 10) {
+            // First send just the summaries
+            sendSSEMessage({
+              type: 'summaries_update',
+              summaries: summaryData
+            });
+            
+            // Then send logs in smaller batches
+            const batchSize = 5;
+            for (let i = 0; i < newLogs.length; i += batchSize) {
+              // Check again if we have clients
+              let stillHaveClients = false;
+              clients.forEach(clientRef => {
+                const controller = clientRef.deref();
+                if (controller && controller.desiredSize !== null) {
+                  stillHaveClients = true;
+                }
+              });
+              
+              if (!stillHaveClients) break;
+              
+              const batch = newLogs.slice(i, i + batchSize);
+              sendSSEMessage({ 
+                type: 'logs_update',
+                logs: batch,
+                // Only include summaries in the first batch to avoid duplication
+                summaries: i === 0 ? summaryData : [] 
+              });
+            }
+          } else {
+            // For smaller batches, send everything together
+            sendSSEMessage({
               type: 'logs_update',
-              logs: batch,
-              // Only include summaries in the first batch to avoid duplication
-              summaries: [] 
+              logs: newLogs,
+              summaries: summaryData
             });
           }
         } else {
-          // For smaller batches, send everything together
-          sendSSEMessage({
-            type: 'logs_update',
-            logs: newLogs,
-            summaries: summaryData
-          });
-        }
-      }
-    } else {
-      // Even if there are no new logs, refresh the summaries periodically
-      // This ensures that summaries don't disappear after a scan is complete
-      try {
-        // Check again that we have clients before processing
-        if (clients.size === 0) {
-          return;
-        }
-        
-        // Get recent logs to generate summaries
-        const recentLogs = await db.select()
-          .from(logsTable)
-          .orderBy(desc(logsTable.createdAt))
-          .limit(100);
-        
-        // Dynamically import the summarizeLogs function
-        const { summarizeLogs } = await import('../route');
-        
-        // Generate summaries from recent logs
-        const summaryData = summarizeLogs(recentLogs);
-        
-        // Only send if there are summaries and clients
-        if (summaryData.length > 0 && clients.size > 0) {
-          sendSSEMessage({
-            type: 'summaries_update',
-            summaries: summaryData
-          });
+          console.log('No active clients remaining, skipping message send');
         }
       } catch (error) {
-        console.error('Error refreshing summaries:', error);
+        console.error('Error processing logs or summaries:', error);
       }
     }
-  } catch (error) {
-    console.error('Error polling for new logs:', error);
-  } finally {
-    // Reset polling flag and schedule next poll only if we have clients
-    isPolling = false;
+    
+    // Schedule next poll if we still have clients
     if (clients.size > 0) {
       pollingTimeoutRef = setTimeout(pollForNewLogs, POLLING_INTERVAL);
     } else {
       console.log('No clients left after polling, stopping polling cycle');
-      pollingTimeoutRef = null;
     }
+  } catch (error) {
+    console.error('Error polling for logs:', error);
+  } finally {
+    isPolling = false;
   }
 }
 

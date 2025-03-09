@@ -1,61 +1,79 @@
 import { NextResponse } from 'next/server';
+import { logError } from '../logging';
 
 /**
  * Standard API response format
  */
-export interface ApiResponse<T> {
+export type ApiResponse<T = any> = {
   success: boolean;
   data?: T;
-  error?: string;
   message?: string;
-}
+  error?: string;
+  statusCode: number;
+};
 
 /**
- * Create a successful API response
- * @param data The data to return
- * @param message Optional success message
- * @returns NextResponse with standardized format
+ * Creates a successful API response
  */
-export function successResponse<T>(data: T, message?: string): NextResponse {
-  const response: ApiResponse<T> = {
+export function successResponse<T>(data: T, message?: string, statusCode: number = 200): NextResponse<ApiResponse<T>> {
+  return NextResponse.json({
     success: true,
     data,
-    message
-  };
-  
-  return NextResponse.json(response);
+    message,
+    statusCode
+  }, { status: statusCode });
 }
 
 /**
- * Create an error API response
- * @param error Error message or object
- * @param status HTTP status code
- * @returns NextResponse with standardized format
+ * Creates an error API response
  */
-export function errorResponse(error: string | Error, status: number = 500): NextResponse {
+export function errorResponse(error: string | Error, statusCode: number = 500): NextResponse<ApiResponse> {
   const errorMessage = error instanceof Error ? error.message : error;
   
-  const response: ApiResponse<null> = {
+  return NextResponse.json({
     success: false,
-    error: errorMessage
-  };
-  
-  return NextResponse.json(response, { status });
+    error: errorMessage,
+    statusCode
+  }, { status: statusCode });
 }
 
 /**
- * Handle API errors consistently
- * @param error The error that occurred
- * @param context Optional context for logging
- * @returns NextResponse with standardized error format
+ * Handles API errors and returns a formatted response
  */
-export function handleApiError(error: unknown, context?: string): NextResponse {
-  const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-  const contextPrefix = context ? `[${context}] ` : '';
+export async function handleApiError(error: unknown, customMessage?: string): Promise<NextResponse<ApiResponse>> {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const message = customMessage || 'An error occurred while processing your request';
   
-  console.error(`${contextPrefix}API Error:`, error);
+  await logError(`API Error: ${message} - ${errorMessage}`);
   
-  return errorResponse(errorMessage);
+  return errorResponse(message, 500);
+}
+
+/**
+ * Validates required parameters in a request
+ */
+export function validateParams(params: Record<string, any>, requiredParams: string[]): { valid: boolean; missing?: string[] } {
+  const missing = requiredParams.filter(param => params[param] === undefined || params[param] === null);
+  
+  if (missing.length > 0) {
+    return { valid: false, missing };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Handles API requests with proper error handling
+ */
+export async function withErrorHandling<T>(
+  handler: () => Promise<NextResponse<ApiResponse<T>>>,
+  errorMessage: string = 'An error occurred'
+): Promise<NextResponse<ApiResponse<T>>> {
+  try {
+    return await handler();
+  } catch (error) {
+    return await handleApiError(error, errorMessage);
+  }
 }
 
 /**
