@@ -13,6 +13,12 @@ const nextConfig = {
     // Config accessible on both server and client
   },
 
+  // Optimize for production
+  swcMinify: true,
+  
+  // Increase the timeout for page generation
+  staticPageGenerationTimeout: 120,
+
   // Configure response headers
   async headers() {
     return [

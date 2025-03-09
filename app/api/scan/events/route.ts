@@ -4,12 +4,17 @@ import { logsTable } from '@/db/schema';
 import { desc } from 'drizzle-orm';
 
 // Global event emitter for scan events
-export const scanEventEmitter = new EventTarget();
+const scanEventEmitter = new EventTarget();
 
 // Function to emit an event
-export function emitScanEvent(eventName: string, data: any) {
+function emitScanEvent(eventName: string, data: any) {
   const event = new CustomEvent(eventName, { detail: data });
   scanEventEmitter.dispatchEvent(event);
+}
+
+// Export a function to allow other modules to emit events
+export function triggerScanEvent(eventName: string, data: any) {
+  emitScanEvent(eventName, data);
 }
 
 // Map to store active connections

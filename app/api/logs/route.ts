@@ -5,10 +5,10 @@ import { desc } from 'drizzle-orm';
 
 // Import sendSSEMessage dynamically to avoid circular dependencies
 // We'll use a function that will be set from the outside
-let _sendSSEMessage: ((data: any) => void) | null = null;
+let _sendSSEMessage: ((data: any) => string | null) | null = null;
 
 // Function to set the SSE message sender from outside
-export function setSendSSEMessage(fn: (data: any) => void) {
+export function setSendSSEMessage(fn: (data: any) => string | null) {
   _sendSSEMessage = fn;
   console.log('SSE message sender function has been set');
 }
@@ -339,7 +339,7 @@ export async function DELETE() {
   }
 }
 
-// Helper function to safely send SSE messages
+// Safe wrapper for sending SSE messages
 function sendSafeSSEMessage(data: any) {
   // Use setTimeout to make this non-blocking
   setTimeout(() => {

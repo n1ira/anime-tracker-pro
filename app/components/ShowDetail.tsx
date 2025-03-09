@@ -14,6 +14,7 @@ import { Loader2, RefreshCw, ArrowLeft, Play, Edit, ChevronDown, ChevronRight } 
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getSeasonAndEpisode } from '@/app/utils/episodeCalculator';
+import Link from 'next/link';
 
 // Dynamically import the EpisodesPerSeasonEditor component
 const EpisodesPerSeasonEditor = dynamic(() => import('./EpisodesPerSeasonEditor'), {
@@ -289,10 +290,12 @@ export function ShowDetail({ showId }: ShowDetailProps) {
           Back to Shows
         </Button>
         <div className="space-x-2">
-          <Button variant="outline" onClick={() => router.push(`/shows/${showId}/edit`)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Show
-          </Button>
+          <Link href={`/shows/${showId}/edit`} passHref>
+            <Button variant="outline">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Show
+            </Button>
+          </Link>
         </div>
       </div>
 

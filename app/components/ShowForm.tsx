@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Loader2, Save, ArrowLeft, Plus, X } from 'lucide-react';
+import { Loader2, Save, ArrowLeft, Plus, X, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/app/components/ui/badge';
 import { toast } from 'sonner';
@@ -48,51 +48,61 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
 
   const fetchShow = async () => {
     setFetchLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/shows/${showId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch show: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      if (data.success && data.data) {
-        const showData = data.data;
-        setShow({
-          id: showData.id,
-          title: showData.title || '',
-          alternateNames: showData.alternateNames || '[]',
-          episodesPerSeason: showData.episodesPerSeason || '',
-          startSeason: showData.startSeason || 1,
-          startEpisode: showData.startEpisode || 1,
-          endSeason: showData.endSeason || 1,
-          endEpisode: showData.endEpisode || 0,
-          quality: showData.quality || '1080p',
-          status: showData.status || 'watching',
-        });
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      const showData = data;
+      
+      setShow({
+        id: showData.id,
+        title: showData.title || '',
+        alternateNames: showData.alternateNames || '[]',
+        episodesPerSeason: showData.episodesPerSeason || '',
+        startSeason: showData.startSeason || 1,
+        startEpisode: showData.startEpisode || 1,
+        endSeason: showData.endSeason || 1,
+        endEpisode: showData.endEpisode || 0,
+        quality: showData.quality || '1080p',
+        status: showData.status || 'ongoing',
+      });
 
-        // Check if episodesPerSeason is an array
-        try {
-          const eps = JSON.parse(showData.episodesPerSeason);
-          if (Array.isArray(eps)) {
-            setIsEpisodesPerSeasonArray(true);
-          }
-        } catch (e) {
-          // Not an array, it's a single number
-          setIsEpisodesPerSeasonArray(false);
+      try {
+        const eps = JSON.parse(showData.episodesPerSeason);
+        if (Array.isArray(eps)) {
+          setIsEpisodesPerSeasonArray(true);
         }
+      } catch (e) {
+        setIsEpisodesPerSeasonArray(false);
       }
     } catch (error) {
       console.error('Error fetching show:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load show data');
       toast.error('Failed to load show data');
     } finally {
       setFetchLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (isEditing && showId) {
-      fetchShow();
-    }
-  }, [isEditing, showId, fetchShow]);
+  const memoizedFetchShow = useCallback(fetchShow, [showId]);
 
   useEffect(() => {
-    // Parse alternateNames from JSON string when show changes
+    if (isEditing && showId) {
+      memoizedFetchShow();
+    }
+  }, [isEditing, showId, memoizedFetchShow]);
+
+  useEffect(() => {
     try {
       const names = JSON.parse(show.alternateNames);
       setAlternateNames(Array.isArray(names) ? names : []);
@@ -104,18 +114,14 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    // Handle episodesPerSeason field specially
     if (name === 'episodesPerSeason') {
       if (isEpisodesPerSeasonArray) {
-        // For array type, just store the raw string (will be processed on submit)
         setShow(prev => ({ ...prev, [name]: value }));
       } else {
-        // For single value type, store as a number string
         const numValue = parseInt(value) || 12;
         setShow(prev => ({ ...prev, [name]: numValue.toString() }));
       }
     } else {
-      // Handle other fields normally
       setShow(prev => ({
         ...prev,
         [name]: ['startSeason', 'startEpisode', 'endSeason', 'endEpisode'].includes(name)
@@ -152,25 +158,20 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     setError(null);
 
     try {
-      // Format episodesPerSeason based on input type
       const formattedShow = { ...show };
 
       if (isEpisodesPerSeasonArray) {
-        // Parse comma-separated values into an array
         const episodesArray = show.episodesPerSeason
           .split(',')
           .map(val => parseInt(val.trim()))
           .filter(val => !isNaN(val));
 
         if (episodesArray.length > 0) {
-          // Store as JSON string
           formattedShow.episodesPerSeason = JSON.stringify(episodesArray);
         } else {
-          // Default to 12 if parsing fails
           formattedShow.episodesPerSeason = '12';
         }
       }
-      // If it's a single value, it's already in the correct format as a string
 
       const url = isEditing ? `/api/shows/${showId}` : '/api/shows';
       const method = isEditing ? 'PUT' : 'POST';
@@ -189,8 +190,6 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
 
       const data = await response.json();
 
-      // For editing, use the existing showId for redirection
-      // For creating, use the ID from the response
       if (isEditing && showId) {
         router.push(`/shows/${showId}`);
       } else {
@@ -208,6 +207,51 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     return (
       <div className="flex justify-center items-center py-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading show data...</span>
+      </div>
+    );
+  }
+
+  if (error && isEditing) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.back()}
+            className="hover:bg-primary/10"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+        
+        <Card className="shadow-md border-t-4 border-t-destructive">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-2xl font-bold text-destructive">Error Loading Show</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              There was a problem loading the show data. Please try again later.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm font-medium border border-destructive/20">
+              {error}
+            </div>
+          </CardContent>
+          <CardFooter className="pt-4 pb-4 flex justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setError(null);
+                memoizedFetchShow();
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }

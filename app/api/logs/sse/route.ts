@@ -5,7 +5,7 @@ import { desc, gt, asc } from 'drizzle-orm';
 import { setSendSSEMessage } from '../route';
 
 // Use WeakRef for better garbage collection
-export const clients = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
+const clients = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
 
 // Track client connection times to detect stale connections
 const clientConnectTimes = new Map<WeakRef<ReadableStreamController<Uint8Array>>, number>();
@@ -79,7 +79,7 @@ function cleanupStaleClients() {
 }
 
 // Function to send SSE message to all clients
-export function sendSSEMessage(data: any) {
+function sendSSEMessage(data: any) {
   // Early return if no clients
   if (clients.size === 0) {
     console.log('No clients connected, skipping message send');
@@ -162,6 +162,11 @@ export function sendSSEMessage(data: any) {
 
 // Set the sendSSEMessage function in the logs route
 setSendSSEMessage(sendSSEMessage);
+
+// Export a function to allow other modules to send SSE messages
+export function sendSSEMessageToClients(data: any) {
+  return sendSSEMessage(data);
+}
 
 // Poll for new logs and send them to clients
 let lastLogId = 0;
@@ -302,6 +307,9 @@ async function pollForNewLogs() {
 
 // Initialize polling
 let pollingInitialized = false;
+
+// Add proper export type for the GET function
+export type GET = typeof GET;
 
 export async function GET() {
   // Initialize polling only once
