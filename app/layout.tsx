@@ -8,6 +8,7 @@ import { MagnetLinkHandler } from './components/MagnetLinkHandler'
 import { ScanProvider } from './contexts/scan-context'
 import { ShowsProvider } from './contexts/shows-context'
 import { LogsProvider } from './contexts/logs-context'
+import { SWRProvider } from '@/lib/swr-config'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -25,18 +26,20 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen flex flex-col`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          <ShowsProvider>
-            <ScanProvider>
-              <LogsProvider>
-                <Header />
-                <main className="flex-1 py-6">
-                  {children}
-                </main>
-                <Toaster />
-                <MagnetLinkHandler />
-              </LogsProvider>
-            </ScanProvider>
-          </ShowsProvider>
+          <SWRProvider>
+            <ShowsProvider>
+              <ScanProvider>
+                <LogsProvider>
+                  <Header />
+                  <main className="flex-1 py-6">
+                    {children}
+                  </main>
+                  <Toaster />
+                  <MagnetLinkHandler />
+                </LogsProvider>
+              </ScanProvider>
+            </ShowsProvider>
+          </SWRProvider>
         </ThemeProvider>
       </body>
     </html>
