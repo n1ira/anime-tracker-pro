@@ -139,25 +139,25 @@ This document outlines a plan to simplify and refactor the Anime Tracker Pro pro
 
 ### 1. Server Optimization
 
-- [ ] **Simplify Custom Server Implementation**
-  - [ ] Remove unnecessary garbage collection and memory monitoring in server.js
-  - [ ] Replace with standard Next.js server configuration
-  - [ ] Move any essential custom server logic to middleware or API routes
-  - [ ] Update package.json scripts to use standard Next.js commands
+- [x] **Simplify Custom Server Implementation**
+  - [x] Remove unnecessary garbage collection and memory monitoring in server.js
+  - [x] Replace with standard Next.js server configuration
+  - [x] Move any essential custom server logic to middleware or API routes
+  - [x] Update package.json scripts to use standard Next.js commands
 
 ### 2. Code Structure Cleanup
 
-- [ ] **Consolidate Component Directories**
-  - [ ] Move theme-toggle.tsx and theme-provider.tsx from root components/ to app/components/ui/
-  - [ ] Move all UI components from components/ui/ to app/components/ui/
-  - [ ] Remove the root components/ directory
-  - [ ] Update imports across the codebase
+- [x] **Consolidate Component Directories**
+  - [x] Move theme-toggle.tsx and theme-provider.tsx from root components/ to app/components/ui/
+  - [x] Move all UI components from components/ui/ to app/components/ui/
+  - [x] Remove the root components/ directory
+  - [x] Update imports across the codebase
 
-- [ ] **Normalize API Structure**
-  - [ ] Consolidate app/api/scan/ and app/api/scanner/ into a single directory
-  - [ ] Move app/api/scan/status/ and app/api/scanner/status/ into a single endpoint
-  - [ ] Refactor the large scan/route.ts (674 lines) into smaller, focused modules
-  - [ ] Create a shared API response format and error handling utility
+- [x] **Normalize API Structure**
+  - [x] Consolidate app/api/scan/ and app/api/scanner/ into a single directory
+  - [x] Move app/api/scan/status/ and app/api/scanner/status/ into a single endpoint
+  - [x] Refactor the large scan/route.ts (674 lines) into smaller, focused modules
+  - [x] Create a shared API response format and error handling utility
 
 ### 3. Database and Migration Optimization
 
@@ -513,8 +513,8 @@ As changes are implemented, this section will track progress and update the file
 
 | Step | Status | Notes |
 |------|--------|-------|
-| 1. Server Optimization | Not Started | |
-| 2. Code Structure Cleanup | Not Started | |
+| 1. Server Optimization | Completed | Removed custom server.js with unnecessary GC and memory monitoring. Replaced with standard Next.js configuration and middleware. Updated package.json scripts. |
+| 2. Code Structure Cleanup | Completed | Consolidated component directories and moved UI components to app/components/ui/. Created a consolidated scanner API structure. Refactored the large scan/route.ts file into smaller, focused modules and created shared API utilities. |
 | 3. Database and Migration Optimization | Not Started | |
 | 4. Frontend Simplification | Not Started | |
 | 5. API Route Optimization | Not Started | |

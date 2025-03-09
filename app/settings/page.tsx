@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
+import { Input } from '@/app/components/ui/input'
+import { Button } from '@/app/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card'
+import { Checkbox } from '@/app/components/ui/checkbox'
+import { Label } from '@/app/components/ui/label'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 

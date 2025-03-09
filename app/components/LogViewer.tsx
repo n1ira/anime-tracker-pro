@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLogStream } from '../hooks/useLogStream';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ScrollArea } from '@/app/components/ui/scroll-area';
+import { Badge } from '@/app/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { 
   AlertCircle, 
   Trash2, 
@@ -19,8 +19,8 @@ import {
   XCircle,
   RefreshCw
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from '@/app/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  AlertDialogTrigger,
+} from "@/app/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export function LogViewer() {

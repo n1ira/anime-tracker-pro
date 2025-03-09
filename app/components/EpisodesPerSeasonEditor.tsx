@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/app/components/ui/button';
 import { Edit, Save, X } from 'lucide-react';
 
 interface EpisodesPerSeasonEditorProps {
