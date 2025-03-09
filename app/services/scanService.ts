@@ -8,6 +8,8 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseTitle, isValidEpisode } from '@/app/utils/torrentParser';
 import OpenAI from 'openai';
+import { invalidateCache } from '@/app/api/scan/status/route';
+import { searchTorrents } from '@/app/services/torrentService';
 
 // Nyaa.si URL for anime torrents
 const NYAA_URL = 'https://nyaa.si/';
@@ -31,15 +33,30 @@ type Episode = {
 export async function initializeScanState() {
   try {
     // Check for existing scan state
-    const existingScanState = await db.select({ count: sql`count(*)` }).from(scanStateTable);
-    if (!existingScanState || existingScanState.length === 0 || existingScanState[0].count === 0) {
+    const existingScanState = await db.select().from(scanStateTable);
+    
+    if (!existingScanState || existingScanState.length === 0) {
       await logInfo('No scan state found, initializing');
       await db.insert(scanStateTable).values({
         isScanning: false,
         status: 'idle',
-        currentShowId: null
+        currentShowId: null,
+        updatedAt: new Date()
       });
       await logInfo('Successfully initialized scan state table');
+    } else {
+      // If the status is null or empty, update it to 'idle'
+      const currentState = existingScanState[0];
+      if (!currentState.status) {
+        await logInfo('Scan state found but status is null, updating to idle');
+        await db.update(scanStateTable)
+          .set({
+            status: 'idle',
+            updatedAt: new Date()
+          })
+          .where(eq(scanStateTable.id, currentState.id));
+        await logInfo('Successfully updated scan state status to idle');
+      }
     }
   } catch (error) {
     await logError(`Error initializing scan state: ${error}`);
@@ -57,7 +74,7 @@ export async function getScanState() {
     
     if (!scanState || scanState.length === 0) {
       // Create a default scan state if none exists
-      return {
+      const defaultState = {
         id: 0,
         isScanning: false,
         status: 'idle',
@@ -66,31 +83,48 @@ export async function getScanState() {
         updatedAt: new Date().toISOString(),
         currentShow: null
       };
+      await logInfo('No scan state found, returning default state');
+      return defaultState;
     }
     
     // Get the current show if there's a currentShowId
     let currentShow = null;
     if (scanState[0].currentShowId) {
-      const show = await db.select()
-        .from(showsTable)
-        .where(eq(showsTable.id, scanState[0].currentShowId))
-        .limit(1);
-      
-      if (show && show.length > 0) {
-        currentShow = show[0];
+      try {
+        const show = await db.select()
+          .from(showsTable)
+          .where(eq(showsTable.id, scanState[0].currentShowId))
+          .limit(1);
+        
+        if (show && show.length > 0) {
+          currentShow = show[0];
+          await logInfo(`Retrieved currentShow for scan state: ${currentShow.title} (ID: ${currentShow.id})`);
+        } else {
+          await logInfo(`No show found with ID: ${scanState[0].currentShowId}`);
+        }
+      } catch (showError) {
+        await logError(`Error retrieving show with ID ${scanState[0].currentShowId}: ${showError}`);
       }
     }
     
+    // Ensure the status has a valid value and not null or undefined
+    const status = scanState[0].status || 'idle';
+    
     // Return a properly formatted scan state
-    return {
+    const formattedScanState = {
       id: scanState[0].id,
       isScanning: scanState[0].isScanning ?? false,
-      status: scanState[0].status ?? 'idle',
+      status: status,
       currentShowId: scanState[0].currentShowId,
       startedAt: scanState[0].startedAt ? new Date(scanState[0].startedAt).toISOString() : null,
       updatedAt: scanState[0].updatedAt ? new Date(scanState[0].updatedAt).toISOString() : new Date().toISOString(),
       currentShow
     };
+    
+    // Log the formatted scan state (excluding the full currentShow object for brevity)
+    await logInfo(`Returning scan state: isScanning=${formattedScanState.isScanning}, status=${formattedScanState.status}, currentShowId=${formattedScanState.currentShowId}, hasCurrentShow=${currentShow !== null}`);
+    
+    return formattedScanState;
   } catch (error) {
     await logError(`Error getting scan state: ${error}`);
     // Return a safe default state in case of error
@@ -111,21 +145,24 @@ export async function getScanState() {
  */
 export async function updateScanState(isScanning: boolean, status: string, currentShowId: number | null) {
   try {
+    // Truncate status to 50 characters to match database constraint
+    const truncatedStatus = status.length > 50 ? status.substring(0, 47) + '...' : status;
+    
     const currentState = await getScanState();
     await db.update(scanStateTable)
       .set({
         isScanning,
-        status,
-        currentShowId
+        status: truncatedStatus,
+        currentShowId,
+        startedAt: isScanning ? new Date() : null,
+        updatedAt: new Date()
       })
       .where(eq(scanStateTable.id, currentState.id));
     
     // Invalidate any cached scan state
-    try {
-      await fetch('/api/scan/status', { method: 'DELETE' });
-    } catch (error) {
-      console.error('Error invalidating scan state cache:', error);
-    }
+    invalidateCache();
+    
+    await logInfo(`Updated scan state: isScanning=${isScanning}, status=${truncatedStatus}, currentShowId=${currentShowId}`);
   } catch (error) {
     await logError(`Error updating scan state: ${error}`);
     throw error;
@@ -139,6 +176,9 @@ export async function scanShow(showId: number, origin: string, isPartOfBatchScan
   try {
     // Log the start of the scan
     await logInfo(`Starting scan for show ID: ${showId}`);
+    
+    // Update scan state to indicate we're scanning this show
+    await updateScanState(true, `Scanning show ID: ${showId}`, showId);
     
     // Get the show details
     const show = await db.select().from(showsTable).where(eq(showsTable.id, showId)).limit(1);
@@ -154,6 +194,8 @@ export async function scanShow(showId: number, origin: string, isPartOfBatchScan
       return false;
     }
     
+    // Update scan state with show title now that we have it
+    await updateScanState(true, `Scanning ${show[0].title}`, showId);
     await logInfo(`Scanning show: ${show[0].title}`);
     
     // Get all episodes for this show
@@ -196,6 +238,7 @@ export async function scanShow(showId: number, origin: string, isPartOfBatchScan
     // If no episodes are downloaded yet, start with S1E1
     if (downloadedEpisodes.length === 0) {
       nextEpisodeToDownload = { season: 1, episode: 1 };
+      await logInfo(`No downloaded episodes found for ${show[0].title}, starting with S1E1`);
     } else {
       // Find the highest downloaded episode
       // We need to add the season field to the episodes for calculation
@@ -231,6 +274,7 @@ export async function scanShow(showId: number, origin: string, isPartOfBatchScan
       }
       
       nextEpisodeToDownload = { season: nextSeason, episode: nextEpisode };
+      await logInfo(`Highest downloaded episode for ${show[0].title} is S${highestDownloaded.season}E${highestDownloaded.episodeNumber}, looking for S${nextSeason}E${nextEpisode}`);
     }
     
     if (!nextEpisodeToDownload) {
@@ -318,20 +362,17 @@ export async function scanShow(showId: number, origin: string, isPartOfBatchScan
  */
 async function searchEpisode(show: any, season: number, episode: number, origin: string) {
   try {
-    // Make a request to the torrent search endpoint
-    const response = await fetch(`${origin}/api/torrent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        showId: show.id,
-        season,
-        episode,
-      }),
-    });
+    // Use torrentService directly instead of making a fetch request
+    const result = await searchTorrents(show.id, season, episode);
     
-    return await response.json();
+    // Log search result
+    if (result.success) {
+      await logInfo(`Found match for ${show.title} S${season}E${episode}: ${result.title}`);
+    } else {
+      await logInfo(`No matches found for ${show.title} S${season}E${episode}`);
+    }
+    
+    return result;
   } catch (error) {
     await logError(`Error searching for episode: ${error}`);
     return { success: false, message: "Error searching for episode" };
@@ -359,8 +400,9 @@ export async function scanAllShows(origin: string) {
     
     // Scan each show
     for (const show of shows) {
-      // Update scan state with current show
-      await updateScanState(true, `Scanning ${show.title}`, show.id);
+      // Use a shorter status message to avoid exceeding the 50 char limit
+      const showTitle = truncateTitle(show.title, 20);
+      await updateScanState(true, `Scanning ${showTitle}`, show.id);
       
       // Scan the show
       await scanShow(show.id, origin, true);
@@ -387,4 +429,4 @@ export function truncateTitle(title: string, maxLength: number = 20): string {
     return title;
   }
   return title.substring(0, maxLength) + '...';
-} 
+}

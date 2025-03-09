@@ -11,6 +11,10 @@ let scanStateCache: any = null;
 let cacheTimestamp: number = 0;
 const CACHE_TTL = 2000; // 2 seconds
 
+// Track last log time to reduce log spam
+let lastLogTimestamp: number = 0;
+const LOG_INTERVAL = 5000; // Only log once every 5 seconds
+
 /**
  * Invalidates the scan state cache
  */
@@ -30,7 +34,11 @@ export async function GET() {
       return successResponse(scanStateCache, 'Scan state retrieved from cache');
     }
     
-    await logInfo('GET /api/scan/status - Getting scan state');
+    // Only log periodically to reduce log spam
+    if (now - lastLogTimestamp > LOG_INTERVAL) {
+      await logInfo('GET /api/scan/status - Getting scan state');
+      lastLogTimestamp = now;
+    }
     
     // Get the current scan state
     const scanState = await getScanState();

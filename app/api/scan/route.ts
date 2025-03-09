@@ -38,12 +38,41 @@ export async function GET() {
 export async function POST(request: Request) {
   return withErrorHandling(async () => {
     try {
-      const { showId, origin } = await request.json();
+      // Extract the request data
+      const requestData = await request.json();
+      
+      // Handle old format parameters: {isScanning, currentShowId, status, action}
+      // And map them to new format: {showId, origin}
+      let showId = requestData.showId;
+      const origin = request.headers.get('origin') || '';
+      
+      // If using old parameter format, map to new format
+      if ('currentShowId' in requestData && 'action' in requestData) {
+        // Map old format to new format
+        showId = requestData.currentShowId || null;
+        
+        // If action is 'stop', use the stop endpoint instead
+        if (requestData.action === 'stop') {
+          // Redirect to the stop endpoint
+          const response = await fetch(`${origin}/api/scan/stop`, {
+            method: 'POST',
+          });
+          
+          if (!response.ok) {
+            return errorResponse('Failed to stop scan', 500);
+          }
+          
+          const data = await response.json();
+          return successResponse(data.data, data.message || 'Scan stopped successfully');
+        }
+      }
+      
+      // Log the request
+      await logInfo(`POST /api/scan - Processing request: ${JSON.stringify({ showId, origin })}`);
       
       // Validate required parameters
-      const validation = validateParams({ showId, origin }, ['origin']);
-      if (!validation.valid) {
-        return errorResponse(`Missing required parameters: ${validation.missing?.join(', ')}`, 400);
+      if (!origin) {
+        return errorResponse('Missing required origin parameter', 400);
       }
       
       // Get the current scan state
@@ -68,7 +97,7 @@ export async function POST(request: Request) {
         });
         
         return successResponse({ isScanning: true, showId }, 'Scan started successfully');
-        } else {
+      } else {
         // Scan all shows
         await logInfo('POST /api/scan - Starting scan for all shows');
         
@@ -82,8 +111,8 @@ export async function POST(request: Request) {
         });
         
         return successResponse({ isScanning: true }, 'Scan started successfully');
-    }
-  } catch (error) {
+      }
+    } catch (error) {
       return await handleApiError(error, 'Failed to start scan');
     }
   }, 'Failed to start scan');

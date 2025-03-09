@@ -43,6 +43,13 @@ export function ScanController() {
     }
   };
 
+  // Determine the display status, defaulting to 'Idle' instead of 'Unknown'
+  const getDisplayStatus = () => {
+    if (!scanState) return 'Idle';
+    if (!scanState.status) return scanState.isScanning ? 'Scanning' : 'Idle';
+    return scanState.status;
+  };
+
   return (
     <Card className="w-full shadow-md">
       <CardHeader className="border-b bg-muted/20">
@@ -54,17 +61,21 @@ export function ScanController() {
             <span className="font-medium">Status:</span>
             {scanState ? (
               <Badge className={getStatusColor()}>
-                {scanState.status || 'Unknown'}
+                {getDisplayStatus()}
               </Badge>
             ) : (
-              <Badge variant="outline">Unknown</Badge>
+              <Badge variant="outline">Idle</Badge>
             )}
           </div>
           
-          {scanState?.isScanning && scanState.currentShow && (
+          {scanState?.isScanning && scanState.currentShowId && (
             <div className="flex justify-between items-center">
               <span className="font-medium">Current Show:</span>
-              <span>{scanState.currentShow.title}</span>
+              {scanState.currentShow ? (
+                <span>{scanState.currentShow.title}</span>
+              ) : (
+                <span>ID: {scanState.currentShowId}</span>
+              )}
             </div>
           )}
           

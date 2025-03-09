@@ -44,19 +44,34 @@ export function useScanState() {
       }
       const data = await response.json();
       
+      // Make sure data is valid
+      if (!data || !data.data) {
+        throw new Error('Invalid scan state data from API');
+      }
+      
+      // Ensure we have a default status if none provided
+      const scanData = {
+        ...data.data,
+        status: data.data.status || 'idle'
+      };
+      
       // Only update state if component is still mounted
       if (isMounted.current) {
-        // Check if scan state has changed
-        if (lastScanStateRef.current?.isScanning !== data.isScanning) {
+        // Check if scan state has changed significantly to avoid console spam
+        if (lastScanStateRef.current?.isScanning !== scanData.isScanning || 
+            lastScanStateRef.current?.status !== scanData.status ||
+            lastScanStateRef.current?.currentShowId !== scanData.currentShowId) {
           console.log('DEBUG: Scan state changed in frontend:', 
-            lastScanStateRef.current?.isScanning, '->', data.isScanning,
-            'status:', data.status);
+            'isScanning:', lastScanStateRef.current?.isScanning, '->', scanData.isScanning,
+            'status:', scanData.status,
+            'currentShowId:', scanData.currentShowId,
+            'currentShow:', scanData.currentShow ? scanData.currentShow.title : 'null');
         }
         
         // Update the last scan state ref
-        lastScanStateRef.current = data;
+        lastScanStateRef.current = scanData;
         
-        setScanState(data);
+        setScanState(scanData);
         setError(null);
       }
     } catch (err) {
@@ -65,6 +80,19 @@ export function useScanState() {
       // Only update state if component is still mounted
       if (isMounted.current) {
         setError('Failed to fetch scan state');
+        
+        // Set a default scan state if we couldn't fetch one
+        if (!scanState) {
+          setScanState({
+            id: 0,
+            isScanning: false,
+            status: 'idle',
+            currentShowId: null,
+            startedAt: null,
+            updatedAt: new Date().toISOString(),
+            currentShow: null
+          });
+        }
       }
     } finally {
       // Only update state if component is still mounted
@@ -72,7 +100,7 @@ export function useScanState() {
         setLoading(false);
       }
     }
-  }, []);
+  }, [scanState]);
 
   // Start a scan for a specific show or all shows
   const startScan = useCallback(async (showId?: number) => {
@@ -178,11 +206,14 @@ export function useScanState() {
       pollingIntervalRef.current = null;
     }
     
-    // Always poll, but at different rates depending on scanning state
-    // Use a shorter polling interval during scanning to ensure we catch state changes quickly
-    const pollInterval = scanState?.isScanning ? 500 : 2000; // Poll every 500ms during scanning, 2 seconds otherwise
+    // Use different polling intervals depending on scanning state
+    // More frequent during scanning, much less frequent when idle
+    const pollInterval = scanState?.isScanning ? 1000 : 5000; // 1s during scanning, 5s when idle
     
-    console.log('DEBUG: Setting up polling interval:', pollInterval, 'ms, isScanning:', scanState?.isScanning);
+    // Debug log for polling interval changes, not for each poll
+    if (lastScanStateRef.current?.isScanning !== scanState?.isScanning) {
+      console.log('DEBUG: Setting up polling interval:', pollInterval, 'ms, isScanning:', scanState?.isScanning);
+    }
     
     pollingIntervalRef.current = setInterval(() => {
       fetchScanState();
