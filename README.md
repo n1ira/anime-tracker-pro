@@ -115,14 +115,38 @@ The application includes several optimizations for performance and stability:
 
 ### Running Migrations
 
-To create and run database migrations:
+The application uses Drizzle ORM for database migrations. The migration system has been simplified to use SQL files directly.
+
+#### Migration Structure
+
+- `/db/migrations/sql`: Contains all SQL migration files
+  - `0000_initial_schema.sql`: Initial database schema
+  - `0001_add_episodes_per_season.sql`: Adds episodes_per_season field
+  - `0002_remove_episode_fields.sql`: Removes deprecated episode fields
+  - `0003_add_show_fields.sql`: Adds additional show fields
+
+#### Running Migrations
+
+To run all migrations in sequence:
 
 ```bash
-# Generate migrations based on schema changes
-npm run db:generate
+# Apply all migrations to the database
+npm run db:run-migrations
+```
 
-# Apply migrations to the database
-npm run db:migrate
+#### Creating New Migrations
+
+To create a new migration:
+
+1. Create a new SQL file in the `/db/migrations/sql` directory with a sequential number prefix
+2. Write your SQL migration statements in the file
+3. Run the migrations using the command above
+
+Example migration file:
+
+```sql
+-- Description of what this migration does
+ALTER TABLE table_name ADD COLUMN new_column_name data_type;
 ```
 
 ## License
