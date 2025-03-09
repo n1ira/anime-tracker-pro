@@ -5,29 +5,63 @@ import { Badge } from '@/app/components/ui/badge';
 import { RefreshCw, ArrowLeft, Edit, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+/**
+ * Interface representing a show object
+ * @interface Show
+ */
 interface Show {
+  /** Unique identifier for the show */
   id: number;
+  /** Title of the show */
   title: string;
+  /** Current status of the show (ongoing, completed, paused) */
   status: string;
+  /** ISO timestamp of when the show was last scanned */
   lastScanned?: string;
+  /** JSON string representing the number of episodes per season */
   episodesPerSeason?: string;
+  /** Starting season to track */
   startSeason?: number;
+  /** Ending season to track */
   endSeason?: number;
+  /** Starting episode to track */
   startEpisode?: number;
+  /** Ending episode to track */
   endEpisode?: number;
 }
 
+/**
+ * Props for the ShowHeader component
+ * @interface ShowHeaderProps
+ */
 interface ShowHeaderProps {
+  /** Show object containing details about the anime */
   show: Show;
+  /** Unique identifier for the show */
   showId: number;
+  /** Current episode number the user is on */
   currentEpisode: number;
+  /** Total number of episodes for the show, or null if unknown */
   totalEpisodes: number | null;
+  /** Function to trigger scanning for new episodes */
   onScan: () => Promise<void>;
+  /** Function to navigate back to the shows list */
   onBack: () => void;
+  /** Whether the component is in a loading state */
   loading: boolean;
+  /** Whether a scan is currently in progress */
   scanLoading: boolean;
 }
 
+/**
+ * Header component for the show detail page
+ * 
+ * Displays the show title, status, progress, and action buttons
+ * for navigating back, editing the show, and scanning for new episodes.
+ * 
+ * @param {ShowHeaderProps} props - Component props
+ * @returns {JSX.Element} The rendered component
+ */
 export function ShowHeader({
   show,
   showId,

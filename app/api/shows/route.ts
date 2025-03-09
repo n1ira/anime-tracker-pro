@@ -2,6 +2,28 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db/db';
 import { showsTable, episodesTable } from '@/db/schema';
 
+/**
+ * @api {get} /api/shows Get all shows
+ * @apiDescription Retrieves a list of all anime shows in the database
+ * @apiName GetShows
+ * @apiGroup Shows
+ * 
+ * @apiSuccess {Object[]} shows List of show objects
+ * @apiSuccess {Number} shows.id Show ID
+ * @apiSuccess {String} shows.title Show title
+ * @apiSuccess {String} [shows.alternateNames] Alternate names for the show
+ * @apiSuccess {Number} [shows.startSeason] Starting season to track
+ * @apiSuccess {Number} [shows.startEpisode] Starting episode to track
+ * @apiSuccess {Number} [shows.endSeason] Ending season to track
+ * @apiSuccess {Number} [shows.endEpisode] Ending episode to track
+ * @apiSuccess {String} [shows.episodesPerSeason] JSON string of episodes per season
+ * @apiSuccess {String} [shows.quality] Preferred quality
+ * @apiSuccess {String} shows.status Show status (ongoing, completed, paused)
+ * @apiSuccess {String} [shows.lastScanned] Timestamp of last scan
+ * 
+ * @apiError {Object} error Error object
+ * @apiError {String} error.error Error message
+ */
 export async function GET() {
   try {
     const shows = await db.select().from(showsTable);
@@ -12,6 +34,28 @@ export async function GET() {
   }
 }
 
+/**
+ * @api {post} /api/shows Create a new show
+ * @apiDescription Creates a new anime show in the database
+ * @apiName CreateShow
+ * @apiGroup Shows
+ * 
+ * @apiBody {String} title Show title
+ * @apiBody {String} [alternateNames] Alternate names for the show
+ * @apiBody {Number} [startSeason] Starting season to track
+ * @apiBody {Number} [startEpisode] Starting episode to track
+ * @apiBody {Number} [endSeason] Ending season to track
+ * @apiBody {Number} [endEpisode] Ending episode to track
+ * @apiBody {String} [episodesPerSeason] JSON string of episodes per season
+ * @apiBody {String} [quality] Preferred quality
+ * @apiBody {String} status Show status (ongoing, completed, paused)
+ * 
+ * @apiSuccess {Object} show Created show object
+ * @apiSuccess {Number} show.id Show ID
+ * 
+ * @apiError {Object} error Error object
+ * @apiError {String} error.error Error message
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
