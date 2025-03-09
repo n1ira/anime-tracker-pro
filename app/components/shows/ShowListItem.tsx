@@ -33,7 +33,7 @@ export function ShowListItem({
   totalEpisodes,
   seasonData,
   onDelete,
-  onShowClick
+  onShowClick,
 }: ShowListItemProps) {
   const router = useRouter();
   const hasMultipleSeasons = Object.keys(seasonData || {}).length > 1;
@@ -60,11 +60,13 @@ export function ShowListItem({
         </span>
       );
     }
-    
+
     // For multiple seasons, show the breakdown
     return (
       <div className="text-sm text-muted-foreground">
-        <span>Total: {currentEpisode}/{totalEpisodes}</span>
+        <span>
+          Total: {currentEpisode}/{totalEpisodes}
+        </span>
         <div className="flex flex-wrap gap-2 mt-1">
           {Object.entries(seasonData).map(([season, data]) => (
             <Badge key={`${show.id}-s${season}`} variant="outline" className="text-xs">
@@ -81,15 +83,19 @@ export function ShowListItem({
       className={`flex items-center justify-between p-4 rounded-md border hover:bg-accent/50 cursor-pointer transition-colors shadow-sm ${
         hasMultipleSeasons ? 'flex-col items-start' : ''
       }`}
-      onClick={(e) => onShowClick(show.id, e)}
+      onClick={e => onShowClick(show.id, e)}
     >
-      <div className={`flex ${hasMultipleSeasons ? 'flex-col w-full' : 'items-center justify-between w-full'}`}>
+      <div
+        className={`flex ${hasMultipleSeasons ? 'flex-col w-full' : 'items-center justify-between w-full'}`}
+      >
         <div className={`flex ${hasMultipleSeasons ? 'flex-col' : 'flex-col flex-grow'}`}>
           <span className="font-medium text-lg">{show.title}</span>
           {renderEpisodesCount()}
         </div>
-        
-        <div className={`flex items-center ${hasMultipleSeasons ? 'mt-2 w-full justify-between' : 'space-x-2'}`}>
+
+        <div
+          className={`flex items-center ${hasMultipleSeasons ? 'mt-2 w-full justify-between' : 'space-x-2'}`}
+        >
           {getStatusBadge(show.status)}
           {show.lastScanned && (
             <span className="text-xs text-muted-foreground">
@@ -101,7 +107,7 @@ export function ShowListItem({
               variant="ghost"
               size="icon"
               className="hover:bg-accent"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 router.push(`/shows/${show.id}`);
               }}
@@ -112,7 +118,7 @@ export function ShowListItem({
               variant="ghost"
               size="icon"
               className="hover:bg-accent"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 router.push(`/shows/${show.id}/edit`);
               }}
@@ -123,7 +129,7 @@ export function ShowListItem({
               variant="ghost"
               size="icon"
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 onDelete(show.id);
               }}
@@ -135,4 +141,4 @@ export function ShowListItem({
       </div>
     </div>
   );
-} 
+}

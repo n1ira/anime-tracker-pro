@@ -1,17 +1,10 @@
-"use client";
+'use client';
 
 import { useScanStatus } from './useScanStatus';
 import { useScanControl } from './useScanControl';
 
 export function useScanState() {
-  const {
-    scanState,
-    loading,
-    error,
-    fetchScanState,
-    startPolling,
-    stopPolling,
-  } = useScanStatus();
+  const { scanState, loading, error, fetchScanState, startPolling, stopPolling } = useScanStatus();
 
   const {
     isStartingScanner,
@@ -35,16 +28,16 @@ export function useScanState() {
     currentShowId: scanState?.currentShowId || null,
     currentShow: scanState?.currentShow || null,
     scanStatus: scanState?.status || 'Idle',
-    
+
     // Status actions
     fetchScanState,
     startPolling,
     stopPolling,
-    
+
     // Control actions
     startShowScan,
     startAllShowsScan,
     stopScan,
     clearStatusMessage,
   };
-} 
+}

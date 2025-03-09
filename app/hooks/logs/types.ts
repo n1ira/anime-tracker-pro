@@ -13,4 +13,4 @@ export type LogSummary = {
   target: string;
   status: string;
   details: string;
-}; 
+};

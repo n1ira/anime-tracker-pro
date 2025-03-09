@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import useSWR, { useSWRConfig } from 'swr';
 import { toast } from 'sonner';
@@ -22,7 +22,7 @@ const getScanStatusKey = () => `/api/scan/status`;
 export function useSWRScanStatus() {
   const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: ScanState }>(
     getScanStatusKey(),
-    { 
+    {
       refreshInterval: 2000, // Poll every 2 seconds when active
       revalidateOnFocus: true,
       dedupingInterval: 1000, // Dedupe requests with the same key in this time span
@@ -30,7 +30,13 @@ export function useSWRScanStatus() {
   );
 
   return {
-    scanState: data?.data || { isScanning: false, currentShow: null, progress: 0, totalShows: 0, completedShows: 0 },
+    scanState: data?.data || {
+      isScanning: false,
+      currentShow: null,
+      progress: 0,
+      totalShows: 0,
+      completedShows: 0,
+    },
     isLoading,
     isValidating,
     error,
@@ -50,14 +56,14 @@ export function useScanControl() {
       const response = await fetch('/api/scan', {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to start scan: ${response.status} ${response.statusText}`);
       }
-      
+
       // Revalidate scan status
       mutate(getScanStatusKey());
-      
+
       toast.success('Scan started successfully');
       return { success: true };
     } catch (err: any) {
@@ -73,14 +79,14 @@ export function useScanControl() {
       const response = await fetch(`/api/scan?showId=${showId}`, {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to start scan: ${response.status} ${response.statusText}`);
       }
-      
+
       // Revalidate scan status
       mutate(getScanStatusKey());
-      
+
       toast.success('Show scan started successfully');
       return { success: true };
     } catch (err: any) {
@@ -96,14 +102,14 @@ export function useScanControl() {
       const response = await fetch('/api/stop', {
         method: 'POST',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to stop scan: ${response.status} ${response.statusText}`);
       }
-      
+
       // Revalidate scan status
       mutate(getScanStatusKey());
-      
+
       toast.success('Scan stopped successfully');
       return { success: true };
     } catch (err: any) {
@@ -118,4 +124,4 @@ export function useScanControl() {
     startSingleShowScan,
     stopScan,
   };
-} 
+}

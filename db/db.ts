@@ -1,17 +1,17 @@
 import { showsTable, episodesTable, logsTable, scanStateTable, settingsTable } from './schema';
-import { config } from "dotenv"
-import { drizzle } from "drizzle-orm/postgres-js"
-import postgres from "postgres"
+import { config } from 'dotenv';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 
-config({ path: ".env.local" })
+config({ path: '.env.local' });
 
-const schema = { 
-  shows: showsTable, 
-  episodes: episodesTable, 
-  logs: logsTable, 
-  scanState: scanStateTable, 
-  settings: settingsTable 
-}
+const schema = {
+  shows: showsTable,
+  episodes: episodesTable,
+  logs: logsTable,
+  scanState: scanStateTable,
+  settings: settingsTable,
+};
 
 // Configure connection pool with optimized settings
 const client = postgres(process.env.DATABASE_URL!, {
@@ -22,9 +22,9 @@ const client = postgres(process.env.DATABASE_URL!, {
   debug: process.env.NODE_ENV === 'development', // Only enable debug in development
   onnotice: () => {}, // Ignore notice messages to reduce console noise
   onparameter: () => {}, // Ignore parameter messages to reduce console noise
-})
+});
 
-export const db = drizzle(client, { schema })
+export const db = drizzle(client, { schema });
 
 // Define the shutdown function with improved error handling
 const closeDbConnection = async () => {
@@ -35,11 +35,11 @@ const closeDbConnection = async () => {
       console.error('Database connections did not close in time, forcing exit');
       process.exit(1);
     }, 5000);
-    
+
     // Clear the timeout if connections close successfully
     await client.end({ timeout: 5 });
     clearTimeout(forceExitTimeout);
-    
+
     console.log('Database connections closed successfully');
     process.exit(0);
   } catch (err) {
@@ -68,6 +68,6 @@ if (process.env.NODE_ENV === 'development') {
   console.log('Database connection configured with:', {
     max_connections: client.options.max,
     idle_timeout: client.options.idle_timeout,
-    max_lifetime: client.options.max_lifetime
+    max_lifetime: client.options.max_lifetime,
   });
 }

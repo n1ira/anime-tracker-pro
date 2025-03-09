@@ -6,11 +6,11 @@
  */
 export function truncateTitle(title: string, maxLength: number = 20): string {
   if (!title) return '';
-  
+
   if (title.length <= maxLength) {
     return title;
   }
-  
+
   return title.substring(0, maxLength - 3) + '...';
 }
 
@@ -21,7 +21,7 @@ export function truncateTitle(title: string, maxLength: number = 20): string {
  */
 export function parseTitle(title: string): { season: number; episode: number } | null {
   if (!title) return null;
-  
+
   // Common patterns for season and episode in anime titles
   const patterns = [
     // S01E01 format
@@ -43,7 +43,7 @@ export function parseTitle(title: string): { season: number; episode: number } |
     // Ep.01 format (for season 1 implied)
     /Ep\.(\d+)/i,
   ];
-  
+
   for (const pattern of patterns) {
     const match = title.match(pattern);
     if (match) {
@@ -52,13 +52,13 @@ export function parseTitle(title: string): { season: number; episode: number } |
         return { season: 1, episode: parseInt(match[1], 10) };
       } else if (match.length === 3) {
         // Both season and episode found
-        return { 
-          season: parseInt(match[1], 10), 
-          episode: parseInt(match[2], 10) 
+        return {
+          season: parseInt(match[1], 10),
+          episode: parseInt(match[2], 10),
         };
       }
     }
   }
-  
+
   return null;
-} 
+}

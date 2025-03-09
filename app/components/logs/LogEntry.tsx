@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, Clock, Download, Search, XCircle } from 'lucide-react';
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 interface Log {
   id: number;
@@ -18,7 +18,7 @@ interface LogEntryProps {
 
 export function LogEntry({ log, formatTimestamp, getLevelColor }: LogEntryProps) {
   const levelColor = getLevelColor(log.level);
-  
+
   // Parse context if available
   let context: any = null;
   if (log.context) {
@@ -29,12 +29,14 @@ export function LogEntry({ log, formatTimestamp, getLevelColor }: LogEntryProps)
       context = log.context;
     }
   }
-  
+
   return (
-    <div className={cn(
-      "p-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors",
-      log.level === 'error' && "bg-red-50 dark:bg-red-900/10"
-    )}>
+    <div
+      className={cn(
+        'p-3 border-b last:border-b-0 hover:bg-muted/30 transition-colors',
+        log.level === 'error' && 'bg-red-50 dark:bg-red-900/10'
+      )}
+    >
       <div className="flex items-start">
         <div className={`mr-2 mt-0.5 ${levelColor}`}>
           {log.level === 'info' && <CheckCircle2 className="h-4 w-4" />}
@@ -46,15 +48,11 @@ export function LogEntry({ log, formatTimestamp, getLevelColor }: LogEntryProps)
         </div>
         <div className="flex-1">
           <div className="flex justify-between items-start">
-            <span className={`text-xs font-medium ${levelColor}`}>
-              {log.level.toUpperCase()}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {formatTimestamp(log.timestamp)}
-            </span>
+            <span className={`text-xs font-medium ${levelColor}`}>{log.level.toUpperCase()}</span>
+            <span className="text-xs text-muted-foreground">{formatTimestamp(log.timestamp)}</span>
           </div>
           <p className="mt-1 text-sm whitespace-pre-wrap">{log.message}</p>
-          
+
           {context && typeof context === 'object' && (
             <div className="mt-2 text-xs bg-muted/50 p-2 rounded overflow-x-auto">
               <pre className="whitespace-pre-wrap break-words">
@@ -62,7 +60,7 @@ export function LogEntry({ log, formatTimestamp, getLevelColor }: LogEntryProps)
               </pre>
             </div>
           )}
-          
+
           {context && typeof context === 'string' && (
             <div className="mt-2 text-xs bg-muted/50 p-2 rounded overflow-x-auto">
               <pre className="whitespace-pre-wrap break-words">{context}</pre>
@@ -72,4 +70,4 @@ export function LogEntry({ log, formatTimestamp, getLevelColor }: LogEntryProps)
       </div>
     </div>
   );
-} 
+}

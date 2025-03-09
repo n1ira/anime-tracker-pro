@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import { useScanState } from '../hooks/useScanState';
@@ -20,10 +20,10 @@ export function ScanController() {
 
   const getStatusColor = () => {
     if (!scanState || !scanState.status) return 'bg-secondary text-secondary-foreground';
-    
+
     try {
       const statusLower = scanState.status.toLowerCase();
-      
+
       switch (statusLower) {
         case 'idle':
           return 'bg-secondary text-secondary-foreground';
@@ -32,8 +32,8 @@ export function ScanController() {
         case 'stopped':
           return 'bg-warning text-warning-foreground';
         default:
-          return scanState.isScanning 
-            ? 'bg-primary text-primary-foreground' 
+          return scanState.isScanning
+            ? 'bg-primary text-primary-foreground'
             : 'bg-secondary text-secondary-foreground';
       }
     } catch (err) {
@@ -60,14 +60,12 @@ export function ScanController() {
           <div className="flex justify-between items-center">
             <span className="font-medium">Status:</span>
             {scanState ? (
-              <Badge className={getStatusColor()}>
-                {getDisplayStatus()}
-              </Badge>
+              <Badge className={getStatusColor()}>{getDisplayStatus()}</Badge>
             ) : (
               <Badge variant="outline">Idle</Badge>
             )}
           </div>
-          
+
           {scanState?.isScanning && scanState.currentShowId && (
             <div className="flex justify-between items-center">
               <span className="font-medium">Current Show:</span>
@@ -78,26 +76,19 @@ export function ScanController() {
               )}
             </div>
           )}
-          
+
           {scanState?.isScanning && scanState.startedAt && (
             <div className="flex justify-between items-center">
               <span className="font-medium">Started At:</span>
               <span>{new Date(scanState.startedAt).toLocaleTimeString()}</span>
             </div>
           )}
-          
-          {error && (
-            <div className="text-destructive text-sm mt-2">{error}</div>
-          )}
+
+          {error && <div className="text-destructive text-sm mt-2">{error}</div>}
         </div>
       </CardContent>
       <CardFooter className="flex justify-between border-t bg-muted/10 py-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={refreshScanState}
-          disabled={loading}
-        >
+        <Button variant="outline" size="sm" onClick={refreshScanState} disabled={loading}>
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
           ) : (
@@ -105,25 +96,15 @@ export function ScanController() {
           )}
           Refresh
         </Button>
-        
+
         <div className="space-x-2">
           {scanState?.isScanning ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleStopScan}
-              disabled={loading}
-            >
+            <Button variant="destructive" size="sm" onClick={handleStopScan} disabled={loading}>
               <StopCircle className="h-4 w-4 mr-2" />
               Stop Scan
             </Button>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleStartAllScan}
-              disabled={loading}
-            >
+            <Button variant="default" size="sm" onClick={handleStartAllScan} disabled={loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
@@ -136,4 +117,4 @@ export function ScanController() {
       </CardFooter>
     </Card>
   );
-} 
+}

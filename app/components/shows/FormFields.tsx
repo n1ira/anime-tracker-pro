@@ -37,7 +37,7 @@ export function FormFields({
   setNewAlternateName,
   addAlternateName,
   removeAlternateName,
-  setIsEpisodesPerSeasonArray
+  setIsEpisodesPerSeasonArray,
 }: FormFieldsProps) {
   return (
     <div className="space-y-6">
@@ -57,9 +57,7 @@ export function FormFields({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Alternate Names
-        </label>
+        <label className="block text-sm font-medium mb-1">Alternate Names</label>
         <div className="flex flex-wrap gap-2 mb-2">
           {alternateNames.map((name, index) => (
             <Badge key={index} variant="secondary" className="flex items-center gap-1 py-1.5">
@@ -78,7 +76,7 @@ export function FormFields({
           <input
             type="text"
             value={newAlternateName}
-            onChange={(e) => setNewAlternateName(e.target.value)}
+            onChange={e => setNewAlternateName(e.target.value)}
             className="flex-1 p-2 border rounded-md"
             placeholder="Add alternate name"
           />
@@ -96,9 +94,7 @@ export function FormFields({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">
-          Episodes Per Season
-        </label>
+        <label className="block text-sm font-medium mb-1">Episodes Per Season</label>
         <div className="flex items-center gap-2 mb-2">
           <label className="flex items-center">
             <input
@@ -126,7 +122,7 @@ export function FormFields({
           value={show.episodesPerSeason}
           onChange={handleChange}
           className="w-full p-2 border rounded-md"
-          placeholder={isEpisodesPerSeasonArray ? "12, 13, 12" : "12"}
+          placeholder={isEpisodesPerSeasonArray ? '12, 13, 12' : '12'}
           required
         />
       </div>
@@ -235,4 +231,4 @@ export function FormFields({
       </div>
     </div>
   );
-} 
+}

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useCallback } from 'react';
 import { ScanResult } from './types';
@@ -12,7 +12,7 @@ export function useScanControl() {
   const startShowScan = useCallback(async (showId: number): Promise<ScanResult> => {
     setIsStartingScanner(true);
     setStatusMessage('Starting scan...');
-    
+
     try {
       const response = await fetch('/api/scan', {
         method: 'POST',
@@ -21,13 +21,13 @@ export function useScanControl() {
         },
         body: JSON.stringify({ showId }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to start scan');
       }
-      
+
       setStatusMessage('Scan started successfully');
       return { success: true, message: 'Scan started successfully' };
     } catch (err: any) {
@@ -44,7 +44,7 @@ export function useScanControl() {
   const startAllShowsScan = useCallback(async (): Promise<ScanResult> => {
     setIsStartingScanner(true);
     setStatusMessage('Starting scan for all shows...');
-    
+
     try {
       const response = await fetch('/api/scan', {
         method: 'POST',
@@ -53,13 +53,13 @@ export function useScanControl() {
         },
         body: JSON.stringify({ scanAll: true }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to start scan for all shows');
       }
-      
+
       setStatusMessage('Scan started successfully for all shows');
       return { success: true, message: 'Scan started successfully for all shows' };
     } catch (err: any) {
@@ -76,18 +76,18 @@ export function useScanControl() {
   const stopScan = useCallback(async (): Promise<ScanResult> => {
     setIsStoppingScanner(true);
     setStatusMessage('Stopping scan...');
-    
+
     try {
       const response = await fetch('/api/scan/stop', {
         method: 'POST',
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to stop scan');
       }
-      
+
       setStatusMessage('Scan stopped successfully');
       return { success: true, message: 'Scan stopped successfully' };
     } catch (err: any) {
@@ -114,4 +114,4 @@ export function useScanControl() {
     stopScan,
     clearStatusMessage,
   };
-} 
+}

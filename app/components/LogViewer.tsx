@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLogStream } from '../hooks/useLogStream';
@@ -6,21 +6,21 @@ import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Badge } from '@/app/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
-import { 
-  AlertCircle, 
-  Trash2, 
-  Loader2, 
-  List, 
-  Rows, 
-  CheckCircle2, 
-  Clock, 
-  Download, 
-  Search, 
+import {
+  AlertCircle,
+  Trash2,
+  Loader2,
+  List,
+  Rows,
+  CheckCircle2,
+  Clock,
+  Download,
+  Search,
   XCircle,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,32 +31,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
+} from '@/app/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 export function LogViewer() {
-  const { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs, isScanActive, checkScanningStatus } = useLogStream();
+  const {
+    logs,
+    summaries,
+    isConnected,
+    error,
+    isLoading,
+    clearLogs,
+    refreshLogs,
+    isScanActive,
+    checkScanningStatus,
+  } = useLogStream();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("summary");
-  
+  const [activeTab, setActiveTab] = useState('summary');
+
   // References for scrolling
   const detailsContainerRef = useRef<HTMLDivElement>(null);
   const detailsBottomRef = useRef<HTMLDivElement>(null);
   const summaryTopRef = useRef<HTMLDivElement>(null);
-  
+
   // Sort logs in chronological order (oldest first)
   const sortedLogs = useMemo(() => {
     return logs && logs.length > 0
       ? [...logs].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       : [];
   }, [logs]);
-  
+
   // Sort summaries by timestamp in reverse chronological order
   const sortedSummaries = useMemo(() => {
-    return summaries && summaries.length > 0 
-      ? [...summaries].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return summaries && summaries.length > 0
+      ? [...summaries].sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
       : [];
   }, [summaries]);
 
@@ -64,26 +76,26 @@ export function LogViewer() {
   useEffect(() => {
     if (logs.length > 0 && isScanActive) {
       // Scroll to bottom when details tab is active to see newest logs at the end
-      if (detailsBottomRef.current && detailsContainerRef.current && activeTab === "details") {
+      if (detailsBottomRef.current && detailsContainerRef.current && activeTab === 'details') {
         // Use scrollIntoView on the bottom element within the container
-        detailsBottomRef.current.scrollIntoView({ 
-          behavior: "smooth", 
-          block: "end", 
-          inline: "nearest" 
+        detailsBottomRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'end',
+          inline: 'nearest',
         });
       }
     }
   }, [logs, activeTab, isScanActive]);
-  
+
   // Auto-scroll summaries only when there are new ones and scan is active
   useEffect(() => {
     if (summaries.length > 0 && isScanActive) {
       // Scroll to top when summary tab is active to see newest summaries at the top
-      if (summaryTopRef.current && activeTab === "summary") {
-        summaryTopRef.current.scrollIntoView({ 
-          behavior: "smooth", 
-          block: "start", 
-          inline: "nearest" 
+      if (summaryTopRef.current && activeTab === 'summary') {
+        summaryTopRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest',
         });
       }
     }
@@ -113,10 +125,10 @@ export function LogViewer() {
   const handleClearLogs = async () => {
     setClearLoading(true);
     setClearError(null);
-    
+
     try {
       const success = await clearLogs();
-      
+
       if (success) {
         setClearDialogOpen(false);
       } else {
@@ -138,36 +150,36 @@ export function LogViewer() {
   // Function to get icon and color for summary status
   const getStatusColor = (status: string) => {
     const statusLower = status.toLowerCase();
-    
+
     if (statusLower.includes('download') || statusLower.includes('found')) {
       return {
         color: 'text-success',
-        icon: <Download className="h-4 w-4 mr-1" />
+        icon: <Download className="h-4 w-4 mr-1" />,
       };
     } else if (statusLower.includes('not found') || statusLower === 'failed') {
       return {
         color: 'text-destructive',
-        icon: <XCircle className="h-4 w-4 mr-1" />
+        icon: <XCircle className="h-4 w-4 mr-1" />,
       };
     } else if (statusLower.includes('progress') || statusLower === 'in progress') {
       return {
         color: 'text-blue-500',
-        icon: <Clock className="h-4 w-4 mr-1" />
+        icon: <Clock className="h-4 w-4 mr-1" />,
       };
     } else if (statusLower.includes('complet')) {
       return {
         color: 'text-green-600',
-        icon: <CheckCircle2 className="h-4 w-4 mr-1" />
+        icon: <CheckCircle2 className="h-4 w-4 mr-1" />,
       };
     } else if (statusLower.includes('search')) {
       return {
         color: 'text-amber-500',
-        icon: <Search className="h-4 w-4 mr-1" />
+        icon: <Search className="h-4 w-4 mr-1" />,
       };
     } else {
       return {
         color: 'text-muted-foreground',
-        icon: <AlertCircle className="h-4 w-4 mr-1" />
+        icon: <AlertCircle className="h-4 w-4 mr-1" />,
       };
     }
   };
@@ -179,8 +191,8 @@ export function LogViewer() {
           <div className="flex items-center">
             <CardTitle className="mr-2">Scanner Logs</CardTitle>
             {isScanActive && (
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className="bg-blue-100 text-blue-800 border-blue-300 px-2 py-0 h-6 animate-pulse"
               >
                 <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -189,27 +201,19 @@ export function LogViewer() {
             )}
           </div>
           <div className="flex items-center space-x-2">
-            <Badge 
-              variant={isConnected ? "success" : "destructive"}
-              className="px-2 py-0 h-6"
-            >
-              {isConnected ? "Connected" : "Disconnected"}
+            <Badge variant={isConnected ? 'success' : 'destructive'} className="px-2 py-0 h-6">
+              {isConnected ? 'Connected' : 'Disconnected'}
             </Badge>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleRefreshLogs}
-              disabled={isLoading}
-            >
+            <Button variant="ghost" size="icon" onClick={handleRefreshLogs} disabled={isLoading}>
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
             </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setClearDialogOpen(true)}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
@@ -219,7 +223,12 @@ export function LogViewer() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+          defaultValue="summary"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
           <div className="border-b px-4">
             <TabsList className="bg-transparent h-10">
               <TabsTrigger value="summary" className="data-[state=active]:bg-muted/50">
@@ -235,7 +244,7 @@ export function LogViewer() {
 
           <TabsContent value="summary" className="p-4 h-[calc(100vh-300px)] overflow-auto">
             <div ref={summaryTopRef} className="h-1" />
-            
+
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -246,11 +255,11 @@ export function LogViewer() {
 
             {sortedSummaries && sortedSummaries.length > 0 ? (
               <div className="space-y-4">
-                {sortedSummaries.map((summary) => {
+                {sortedSummaries.map(summary => {
                   const { color, icon } = getStatusColor(summary.status);
                   return (
-                    <div 
-                      key={summary.id} 
+                    <div
+                      key={summary.id}
                       className="p-4 rounded-md border bg-card shadow-sm hover:shadow transition-shadow"
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -267,14 +276,14 @@ export function LogViewer() {
                           <span className="text-muted-foreground">Target:</span>{' '}
                           {summary.target !== 'Unknown' ? summary.target : 'Not specified'}
                         </div>
-                        
+
                         <div className="flex items-center">
                           <span className="text-muted-foreground mr-1">Status:</span>
                           <span className={`flex items-center ${color}`}>
                             {icon} {summary.status}
                           </span>
                         </div>
-                        
+
                         {summary.details && (
                           <div className="col-span-2 mt-1 text-sm text-muted-foreground">
                             {summary.details}
@@ -294,25 +303,25 @@ export function LogViewer() {
             )}
           </TabsContent>
 
-          <TabsContent value="details" className="h-[calc(100vh-300px)] overflow-auto space-y-2 p-4" ref={detailsContainerRef}>
+          <TabsContent
+            value="details"
+            className="h-[calc(100vh-300px)] overflow-auto space-y-2 p-4"
+            ref={detailsContainerRef}
+          >
             {sortedLogs && sortedLogs.length > 0 ? (
               <>
-                {sortedLogs.map((log) => (
-                  <div 
-                    key={log.id} 
+                {sortedLogs.map(log => (
+                  <div
+                    key={log.id}
                     className="flex items-start space-x-2 py-1.5 border-b last:border-0"
                   >
-                    <Badge 
-                      className={cn("shrink-0", getLevelColor(log.level))}
-                    >
+                    <Badge className={cn('shrink-0', getLevelColor(log.level))}>
                       {log.level.toUpperCase()}
                     </Badge>
                     <div className="text-sm text-muted-foreground shrink-0 w-20">
                       {formatTimestamp(log.createdAt)}
                     </div>
-                    <div className="text-sm break-words flex-1">
-                      {log.message}
-                    </div>
+                    <div className="text-sm break-words flex-1">{log.message}</div>
                   </div>
                 ))}
                 <div ref={detailsBottomRef} className="h-1" />
@@ -333,14 +342,12 @@ export function LogViewer() {
             <AlertDialogTitle>Clear All Logs</AlertDialogTitle>
             <AlertDialogDescription>
               This will delete all scanner logs. This action cannot be undone.
-              {clearError && (
-                <div className="mt-2 text-destructive">{clearError}</div>
-              )}
+              {clearError && <div className="mt-2 text-destructive">{clearError}</div>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={clearLoading}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleClearLogs}
               disabled={clearLoading}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -373,4 +380,4 @@ function SearchIcon({ className }: { className?: string }) {
       <path d="m21 21-4.3-4.3" />
     </svg>
   );
-} 
+}

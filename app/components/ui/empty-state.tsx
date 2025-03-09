@@ -1,5 +1,5 @@
-import React from "react";
-import { Button } from "./button";
+import React from 'react';
+import { Button } from './button';
 
 interface EmptyStateProps {
   title: string;
@@ -9,13 +9,7 @@ interface EmptyStateProps {
   icon?: React.ReactNode;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-  icon,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center p-8 space-y-4 text-center">
       {icon && <div className="text-muted-foreground mb-2">{icon}</div>}
@@ -28,4 +22,4 @@ export function EmptyState({
       )}
     </div>
   );
-} 
+}

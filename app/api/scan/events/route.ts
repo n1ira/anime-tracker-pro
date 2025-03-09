@@ -21,7 +21,7 @@ export async function GET() {
     start(controller) {
       // Generate a unique client ID
       const clientId = Date.now().toString();
-      
+
       // Function to send events to this client
       const sendEvent = (eventName: string, data: any) => {
         try {
@@ -38,7 +38,7 @@ export async function GET() {
             }
             return;
           }
-          
+
           const eventString = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
           controller.enqueue(encoder.encode(eventString));
         } catch (error) {
@@ -53,7 +53,7 @@ export async function GET() {
           }
         }
       };
-      
+
       // Check if client is still connected
       const isClientConnected = () => {
         try {
@@ -62,29 +62,30 @@ export async function GET() {
           return false;
         }
       };
-      
+
       // Event listener for log events
       const logListener = async () => {
         // Skip if client is no longer active
         if (!isClientConnected()) {
           return;
         }
-        
+
         try {
           // Get the latest log entry
-          const logs = await db.select()
+          const logs = await db
+            .select()
             .from(logsTable)
             .orderBy(desc(logsTable.createdAt))
             .limit(1);
-          
+
           // Check again if client is still active after the async operation
           if (!isClientConnected()) {
             return;
           }
-          
+
           if (logs.length > 0) {
             const log = logs[0];
-            
+
             // Only if client is still connected after the check
             if (isClientConnected()) {
               // Check if this is an episode found log
@@ -97,14 +98,14 @@ export async function GET() {
                   sendEvent('episodeFound', { showId, season, episode });
                 }
               }
-              
+
               // Send the log event
               sendEvent('log', log);
             }
           }
         } catch (error) {
           console.error('Error fetching logs:', error);
-          
+
           // If there's an error, we should clean up this client to avoid repeated errors
           if (clients.has(clientId)) {
             const cleanup = clients.get(clientId);
@@ -116,7 +117,7 @@ export async function GET() {
           }
         }
       };
-      
+
       // Set up interval to check for new logs
       const intervalId = setInterval(() => {
         // Skip if client is no longer connected
@@ -129,10 +130,10 @@ export async function GET() {
           }
           return;
         }
-        
+
         logListener().catch(error => {
           console.error(`Error in log listener for client ${clientId}:`, error);
-          
+
           // If there's a repeated error, we should stop trying for this client
           if (clients.has(clientId)) {
             clearInterval(intervalId);
@@ -141,30 +142,30 @@ export async function GET() {
           }
         });
       }, 2000);
-      
+
       // Store the client's cleanup function
       clients.set(clientId, () => {
         clearInterval(intervalId);
         clients.delete(clientId);
         console.log(`Client ${clientId} disconnected, cleanup complete`);
       });
-      
+
       // Send initial connection event
       sendEvent('connected', { message: 'Connected to scan events' });
-      
+
       console.log(`Client ${clientId} connected to scan events. Total clients: ${clients.size}`);
     },
     cancel() {
       // This will be called when the client disconnects
       console.log('Client disconnected from scan events');
-    }
+    },
   });
 
   return new Response(responseStream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      Connection: 'keep-alive',
+    },
   });
-} 
+}

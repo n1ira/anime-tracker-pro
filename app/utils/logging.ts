@@ -13,22 +13,22 @@ export type LogLevel = 'debug' | 'info' | 'warning' | 'error';
  * @param skipDb If true, the log will only be printed to console but not saved to the database
  */
 export async function createLog(
-  message: string, 
+  message: string,
   level: 'info' | 'success' | 'error' | 'warning' = 'info',
   skipDb: boolean = false
 ) {
   // Skip repetitive logs if they match certain patterns
-  const isRepetitiveLog = 
-    (message.startsWith('Direct match failed:') || 
-     message.startsWith('Comparing episodes for') ||
-     message.startsWith('Parsed title'));
-  
+  const isRepetitiveLog =
+    message.startsWith('Direct match failed:') ||
+    message.startsWith('Comparing episodes for') ||
+    message.startsWith('Parsed title');
+
   console.log(`${level.toUpperCase()}: ${message}`);
-  
+
   if (skipDb || isRepetitiveLog) {
     return; // Skip saving to the database
   }
-  
+
   try {
     await db.insert(logsTable).values({
       message,
@@ -74,4 +74,4 @@ export function logError(message: string, skipDb: boolean = false) {
  */
 export function logWarning(message: string, skipDb: boolean = false) {
   return createLog(message, 'warning', skipDb);
-} 
+}

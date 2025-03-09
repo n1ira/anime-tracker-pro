@@ -8,10 +8,4 @@ import * as TorrentParser from './torrentParser';
 import { cn } from '../utils';
 
 // Export modules as namespaces
-export {
-  EpisodeCalculator,
-  Logging,
-  TitleParser,
-  TorrentParser,
-  cn
-}; 
+export { EpisodeCalculator, Logging, TitleParser, TorrentParser, cn };

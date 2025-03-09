@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/app/components/ui/card';
@@ -13,7 +13,7 @@ import { Button } from '@/app/components/ui/button';
 // Dynamically import the EpisodesPerSeasonEditor component
 const EpisodesPerSeasonEditor = dynamic(() => import('../EpisodesPerSeasonEditor'), {
   ssr: false,
-  loading: () => <span>Loading...</span>
+  loading: () => <span>Loading...</span>,
 });
 
 interface Episode {
@@ -84,12 +84,12 @@ export function ShowDetail({ showId }: ShowDetailProps) {
       }
       const data = await response.json();
       setEpisodes(data);
-      
+
       // Group episodes by season
       const groupedEpisodes: Record<number, Episode[]> = {};
       data.forEach((episode: Episode) => {
         // Use a default value of "12" if episodesPerSeason is undefined
-        const episodesPerSeason = show?.episodesPerSeason || "12";
+        const episodesPerSeason = show?.episodesPerSeason || '12';
         const { season } = getSeasonAndEpisode(episode.episodeNumber, episodesPerSeason);
         if (!groupedEpisodes[season]) {
           groupedEpisodes[season] = [];
@@ -97,19 +97,19 @@ export function ShowDetail({ showId }: ShowDetailProps) {
         groupedEpisodes[season].push({
           ...episode,
           season,
-          episodeInSeason: getSeasonAndEpisode(episode.episodeNumber, episodesPerSeason).episode
+          episodeInSeason: getSeasonAndEpisode(episode.episodeNumber, episodesPerSeason).episode,
         });
       });
-      
+
       setEpisodesBySeason(groupedEpisodes);
-      
+
       // Initialize expanded state for seasons
       const initialExpandedState: Record<number, boolean> = {};
       Object.keys(groupedEpisodes).forEach(season => {
         initialExpandedState[Number(season)] = true; // Default to expanded
       });
       setExpandedSeasons(initialExpandedState);
-      
+
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -131,50 +131,43 @@ export function ShowDetail({ showId }: ShowDetailProps) {
   const toggleSeasonCollapse = (season: number) => {
     setExpandedSeasons(prev => ({
       ...prev,
-      [season]: !prev[season]
+      [season]: !prev[season],
     }));
   };
 
   const toggleEpisodeStatus = async (episode: Episode) => {
     try {
       setEpisodeLoading(prev => ({ ...prev, [episode.id]: true }));
-      
+
       const response = await fetch(`/api/shows/${showId}/episodes/${episode.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          isDownloaded: !episode.isDownloaded
+          isDownloaded: !episode.isDownloaded,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update episode status');
       }
-      
+
       // Update local state
-      setEpisodes(prev => 
-        prev.map(ep => 
-          ep.id === episode.id 
-            ? { ...ep, isDownloaded: !ep.isDownloaded } 
-            : ep
-        )
+      setEpisodes(prev =>
+        prev.map(ep => (ep.id === episode.id ? { ...ep, isDownloaded: !ep.isDownloaded } : ep))
       );
-      
+
       // Update episodes by season
       setEpisodesBySeason(prev => {
         const newState = { ...prev };
         Object.keys(newState).forEach(season => {
-          newState[Number(season)] = newState[Number(season)].map(ep => 
-            ep.id === episode.id 
-              ? { ...ep, isDownloaded: !ep.isDownloaded } 
-              : ep
+          newState[Number(season)] = newState[Number(season)].map(ep =>
+            ep.id === episode.id ? { ...ep, isDownloaded: !ep.isDownloaded } : ep
           );
         });
         return newState;
       });
-      
     } catch (err) {
       console.error('Error updating episode:', err);
     } finally {
@@ -191,21 +184,20 @@ export function ShowDetail({ showId }: ShowDetailProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          showId
+          showId,
         }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to start scan');
       }
-      
+
       // Wait a bit and then refresh the data
       setTimeout(() => {
         fetchShow();
         fetchEpisodes();
         setScanLoading(false);
       }, 2000);
-      
     } catch (err) {
       console.error('Error starting scan:', err);
       setScanLoading(false);
@@ -221,14 +213,14 @@ export function ShowDetail({ showId }: ShowDetailProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          episodesPerSeason: newValue
+          episodesPerSeason: newValue,
         }),
       }).then(response => {
         if (response.ok) {
           // Update local state
           setShow({
             ...show,
-            episodesPerSeason: newValue
+            episodesPerSeason: newValue,
           });
           // Refresh show data to reflect the changes
           fetchShow();
@@ -265,7 +257,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
 
   return (
     <div className="space-y-6">
-      <ShowHeader 
+      <ShowHeader
         show={show}
         showId={showId}
         currentEpisode={currentEpisode}
@@ -313,4 +305,4 @@ export function ShowDetail({ showId }: ShowDetailProps) {
       </Card>
     </div>
   );
-} 
+}

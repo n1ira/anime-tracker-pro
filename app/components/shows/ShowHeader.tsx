@@ -28,18 +28,18 @@ interface ShowHeaderProps {
   scanLoading: boolean;
 }
 
-export function ShowHeader({ 
-  show, 
-  showId, 
-  currentEpisode, 
-  totalEpisodes, 
-  onScan, 
-  onBack, 
-  loading, 
-  scanLoading 
+export function ShowHeader({
+  show,
+  showId,
+  currentEpisode,
+  totalEpisodes,
+  onScan,
+  onBack,
+  loading,
+  scanLoading,
 }: ShowHeaderProps) {
   const router = useRouter();
-  
+
   return (
     <>
       <div className="flex items-center justify-between">
@@ -57,11 +57,16 @@ export function ShowHeader({
 
       <div className="flex justify-between items-start">
         <div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">{show.title}</CardTitle>
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">
+            {show.title}
+          </CardTitle>
           <CardDescription>
-            Status: {show.status} | Episodes: {currentEpisode}/{totalEpisodes || '?'} 
-            {(show.startSeason && show.endSeason) ? (
-              <> | Seasons: {show.startSeason} - {show.endSeason}</>
+            Status: {show.status} | Episodes: {currentEpisode}/{totalEpisodes || '?'}
+            {show.startSeason && show.endSeason ? (
+              <>
+                {' '}
+                | Seasons: {show.startSeason} - {show.endSeason}
+              </>
             ) : null}
           </CardDescription>
           {show.lastScanned && (
@@ -70,11 +75,7 @@ export function ShowHeader({
             </div>
           )}
         </div>
-        <Button 
-          onClick={onScan} 
-          disabled={scanLoading}
-          className="ml-auto"
-        >
+        <Button onClick={onScan} disabled={scanLoading} className="ml-auto">
           {scanLoading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -90,4 +91,4 @@ export function ShowHeader({
       </div>
     </>
   );
-} 
+}

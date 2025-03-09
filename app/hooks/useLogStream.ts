@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 
@@ -53,24 +53,25 @@ export function useLogStream() {
       const response = await fetch('/api/logs', {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to clear logs: ${response.status} ${response.statusText}`);
       }
-      
+
       // Clear logs in the UI immediately
       setLogs([]);
       setSummaries([]);
       setError(null);
-      
+
       // Fetch logs again to ensure we have the latest state
       setTimeout(() => {
         fetchInitialLogs();
       }, 500); // Small delay to allow backend to process
-      
+
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred while clearing logs';
+      const errorMessage =
+        err instanceof Error ? err.message : 'An error occurred while clearing logs';
       console.error('Error clearing logs:', err);
       setError(errorMessage);
       return false;
@@ -82,7 +83,9 @@ export function useLogStream() {
     try {
       const response = await fetch('/api/scanner/status');
       if (!response.ok) {
-        throw new Error(`Failed to fetch scanner status: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch scanner status: ${response.status} ${response.statusText}`
+        );
       }
       const data = await response.json();
       setIsScanActive(data.scanning || false);
@@ -104,56 +107,56 @@ export function useLogStream() {
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 5;
-    
+
     const connectSSE = () => {
       try {
         // Close existing connection if any
         if (eventSource) {
           eventSource.close();
         }
-        
+
         // Connect to SSE endpoint
         eventSource = new EventSource('/api/logs/sse');
-        
+
         eventSource.onopen = () => {
           setIsConnected(true);
           setError(null);
           reconnectAttempts = 0; // Reset reconnect attempts on successful connection
           console.log('Connected to log stream');
         };
-        
-        eventSource.onmessage = (event) => {
+
+        eventSource.onmessage = event => {
           try {
             const data = JSON.parse(event.data);
-            
+
             // Handle the logs update format
             if (data.type === 'logs_update') {
               // Update logs
               if (Array.isArray(data.logs)) {
                 setLogs(prevLogs => {
                   const newLogs = [...prevLogs];
-                  
+
                   // Add each new log if it doesn't already exist
                   data.logs.forEach((newLog: Log) => {
                     if (!newLogs.some(log => log.id === newLog.id)) {
                       newLogs.push(newLog); // Add to the end for chronological display
                     }
                   });
-                  
+
                   // Keep only the latest 100 logs
                   return newLogs.slice(-100);
                 });
               }
-              
+
               // Update summaries if they're included
               if (Array.isArray(data.summaries) && data.summaries.length > 0) {
-                console.log("Received new summaries with logs:", data.summaries.length);
+                console.log('Received new summaries with logs:', data.summaries.length);
                 setSummaries(data.summaries); // Replace with complete summary set
               }
             }
             // Handle summaries-only updates
             else if (data.type === 'summaries_update' && Array.isArray(data.summaries)) {
-              console.log("Received summaries update:", data.summaries.length);
+              console.log('Received summaries update:', data.summaries.length);
               setSummaries(data.summaries);
             }
             // Handle single log format (for backward compatibility)
@@ -165,7 +168,7 @@ export function useLogStream() {
                 }
                 return [...prevLogs, data].slice(-100); // Keep only the latest 100 logs, add to end
               });
-              
+
               // For single logs, we might need to refresh summaries
               setTimeout(() => fetchInitialLogs(), 100);
             }
@@ -173,32 +176,36 @@ export function useLogStream() {
             console.error('Error parsing SSE message:', err);
           }
         };
-        
-        eventSource.onerror = (e) => {
+
+        eventSource.onerror = e => {
           console.error('SSE connection error:', e);
           setIsConnected(false);
-          
+
           // Close the current connection
           if (eventSource) {
             eventSource.close();
             eventSource = null;
           }
-          
+
           // Attempt to reconnect with exponential backoff
           reconnectAttempts++;
           if (reconnectAttempts <= maxReconnectAttempts) {
             const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
-            setError(`Connection to log stream lost. Reconnecting in ${delay/1000} seconds... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
-            
+            setError(
+              `Connection to log stream lost. Reconnecting in ${delay / 1000} seconds... (Attempt ${reconnectAttempts}/${maxReconnectAttempts})`
+            );
+
             if (reconnectTimeout) {
               clearTimeout(reconnectTimeout);
             }
-            
+
             reconnectTimeout = setTimeout(() => {
               connectSSE();
             }, delay);
           } else {
-            setError('Failed to connect to log stream after multiple attempts. Please refresh the page.');
+            setError(
+              'Failed to connect to log stream after multiple attempts. Please refresh the page.'
+            );
           }
         };
       } catch (err) {
@@ -207,38 +214,38 @@ export function useLogStream() {
         setError('Failed to connect to log stream');
       }
     };
-    
+
     // Initial connection
     connectSSE();
-    
+
     // Set up polling for scanning status
     const statusInterval = setInterval(() => {
       checkScanningStatus();
     }, 5000); // Check every 5 seconds
-    
+
     return () => {
       if (eventSource) {
         eventSource.close();
         setIsConnected(false);
       }
-      
+
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
       }
-      
+
       clearInterval(statusInterval);
     };
   }, [fetchInitialLogs, checkScanningStatus]);
 
-  return { 
-    logs, 
-    summaries, 
-    isConnected, 
-    error, 
-    isLoading, 
-    clearLogs, 
+  return {
+    logs,
+    summaries,
+    isConnected,
+    error,
+    isLoading,
+    clearLogs,
     refreshLogs: fetchInitialLogs,
     isScanActive,
-    checkScanningStatus
+    checkScanningStatus,
   };
-} 
+}

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useCallback } from 'react';
 import { Log, LogSummary } from './types';
@@ -59,4 +59,4 @@ export function useLogFetch() {
     fetchInitialLogs,
     clearLogs,
   };
-} 
+}

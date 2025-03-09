@@ -17,4 +17,4 @@ export const showsTable = pgTable('shows', {
   lastScanned: timestamp('last_scanned'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-}); 
+});

@@ -22,4 +22,4 @@ export type Episode = {
   isWatched: boolean;
   createdAt: string;
   updatedAt: string;
-}; 
+};

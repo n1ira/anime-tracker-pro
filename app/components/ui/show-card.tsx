@@ -1,8 +1,8 @@
-import React from "react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
-import { Badge } from "./badge";
-import { Button } from "./button";
-import Link from "next/link";
+import React from 'react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './card';
+import { Badge } from './badge';
+import { Button } from './button';
+import Link from 'next/link';
 
 interface ShowCardProps {
   id: string;
@@ -31,9 +31,7 @@ export function ShowCard({
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg line-clamp-2">{title}</CardTitle>
           {status && (
-            <Badge variant={status === "Completed" ? "success" : "default"}>
-              {status}
-            </Badge>
+            <Badge variant={status === 'Completed' ? 'success' : 'default'}>{status}</Badge>
           )}
         </div>
       </CardHeader>
@@ -47,10 +45,7 @@ export function ShowCard({
               </span>
             </div>
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full bg-primary" style={{ width: `${progress}%` }} />
             </div>
           </div>
         ) : (
@@ -62,15 +57,11 @@ export function ShowCard({
           <Link href={`/shows/${id}`}>View Details</Link>
         </Button>
         {onScan && (
-          <Button
-            variant="secondary"
-            onClick={onScan}
-            disabled={isScanning}
-          >
-            {isScanning ? "Scanning..." : "Scan"}
+          <Button variant="secondary" onClick={onScan} disabled={isScanning}>
+            {isScanning ? 'Scanning...' : 'Scan'}
           </Button>
         )}
       </CardFooter>
     </Card>
   );
-} 
+}

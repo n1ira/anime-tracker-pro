@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Log, LogSummary } from './types';
@@ -17,13 +17,13 @@ export function useLogStream() {
     fetchInitialLogs,
     clearLogs,
   } = useLogFetch();
-  
+
   const [isConnected, setIsConnected] = useState(false);
   const [isScanActive, setIsScanActive] = useState(false);
-  
+
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Function to connect to SSE
   const connectSSE = useCallback(() => {
     if (eventSourceRef.current) {
@@ -39,7 +39,7 @@ export function useLogStream() {
       console.log('SSE connection opened');
     };
 
-    eventSource.onmessage = (event) => {
+    eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'log') {
@@ -95,7 +95,7 @@ export function useLogStream() {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
-      
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
@@ -112,4 +112,4 @@ export function useLogStream() {
     isScanActive,
     clearLogs,
   };
-} 
+}

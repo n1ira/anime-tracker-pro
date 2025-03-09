@@ -5,11 +5,4 @@ import { scanStateTable } from './scanState';
 import { settingsTable } from './settings';
 import { profilesTable } from './profiles';
 
-export { 
-  showsTable, 
-  episodesTable, 
-  logsTable, 
-  scanStateTable, 
-  settingsTable,
-  profilesTable
-}; 
+export { showsTable, episodesTable, logsTable, scanStateTable, settingsTable, profilesTable };

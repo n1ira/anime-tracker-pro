@@ -6,4 +6,4 @@ export default function NewShowPage() {
       <ShowForm />
     </div>
   );
-} 
+}

@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { Suspense } from 'react';
 
@@ -20,16 +20,16 @@ export function lazyLoad<T extends React.ComponentType<any>>(
   LoadingComponent: React.ComponentType = DefaultLoading
 ) {
   const LazyComponent = React.lazy(importFn);
-  
+
   const LazyLoadedComponent = (props: React.ComponentProps<T>) => (
     <Suspense fallback={<LoadingComponent />}>
       <LazyComponent {...props} />
     </Suspense>
   );
-  
+
   // Set display name for the component
   const componentName = importFn.toString().match(/\/([^/]+)'/)?.[1] || 'LazyComponent';
   LazyLoadedComponent.displayName = `LazyLoaded(${componentName})`;
-  
+
   return LazyLoadedComponent;
-} 
+}

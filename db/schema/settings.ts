@@ -5,4 +5,4 @@ export const settingsTable = pgTable('settings', {
   openaiApiKey: varchar('openai_api_key', { length: 255 }),
   useSystemEnvVar: boolean('use_system_env_var').default(false),
   updatedAt: timestamp('updated_at').defaultNow(),
-}); 
+});

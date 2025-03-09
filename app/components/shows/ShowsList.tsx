@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -22,7 +22,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/app/components/ui/alert-dialog";
+} from '@/app/components/ui/alert-dialog';
 
 interface Episode {
   showId: number;
@@ -44,7 +44,7 @@ export function ShowsList() {
   const scanContext = useScan();
   const scanState = scanContext.scanState;
   const isScanning = scanState?.isScanning || false;
-  
+
   const [episodes, setEpisodes] = useState<Record<number, Episode[]>>({});
   const [episodesBySeason, setEpisodesBySeason] = useState<Record<number, EpisodesBySeason>>({});
   const [showIdToDelete, setShowIdToDelete] = useState<number | null>(null);
@@ -78,11 +78,11 @@ export function ShowsList() {
   // Process episodes to group by season
   useEffect(() => {
     const showEpisodesBySeason: Record<number, EpisodesBySeason> = {};
-    
+
     shows.forEach(show => {
       const showEpisodes = episodes[show.id] || [];
       if (showEpisodes.length === 0) return;
-      
+
       // Parse episodesPerSeason
       let episodesPerSeason: number | number[] = 12;
       if (show.episodesPerSeason) {
@@ -98,45 +98,43 @@ export function ShowsList() {
           episodesPerSeason = parseInt(show.episodesPerSeason, 10) || 12;
         }
       }
-      
+
       // Group episodes by season
       const seasonData: EpisodesBySeason = {};
-      
+
       showEpisodes.forEach((episode: Episode) => {
-        const { season } = getSeasonAndEpisode(
-          episode.episodeNumber,
-          show.title,
-          { [show.title]: { episodes_per_season: episodesPerSeason } }
-        );
-        
+        const { season } = getSeasonAndEpisode(episode.episodeNumber, show.title, {
+          [show.title]: { episodes_per_season: episodesPerSeason },
+        });
+
         if (!seasonData[season]) {
           seasonData[season] = { total: 0, downloaded: 0 };
         }
-        
+
         seasonData[season].total += 1;
         if (episode.isDownloaded) {
           seasonData[season].downloaded += 1;
         }
       });
-      
+
       showEpisodesBySeason[show.id] = seasonData;
     });
-    
+
     setEpisodesBySeason(showEpisodesBySeason);
   }, [shows, episodes]);
 
   const handleDeleteShow = async () => {
     if (!showIdToDelete) return;
-    
+
     try {
       const response = await fetch(`/api/shows/${showIdToDelete}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to delete show');
       }
-      
+
       // Refresh shows after deletion
       refreshShows();
       setShowIdToDelete(null);
@@ -158,7 +156,7 @@ export function ShowsList() {
     const showEpisodes = episodes[showId] || [];
     return showEpisodes.filter(ep => ep.isDownloaded).length;
   };
-  
+
   // Helper function to calculate total episodes number
   const getTotalEpisodes = (showId: number) => {
     const showEpisodes = episodes[showId] || [];
@@ -167,10 +165,7 @@ export function ShowsList() {
 
   // Pagination logic
   const totalPages = Math.ceil(shows.length / itemsPerPage);
-  const paginatedShows = shows.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedShows = shows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -179,12 +174,10 @@ export function ShowsList() {
 
   return (
     <>
-      <SectionHeader 
-        title="Your Shows" 
+      <SectionHeader
+        title="Your Shows"
         description="Manage and track your anime collection"
-        actions={
-          <ShowListFilters onRefresh={refreshShows} loading={isLoading || isScanning} />
-        }
+        actions={<ShowListFilters onRefresh={refreshShows} loading={isLoading || isScanning} />}
       />
 
       <Card className="shadow-md">
@@ -200,7 +193,7 @@ export function ShowsList() {
               />
             ) : (
               <div className="grid gap-3">
-                {paginatedShows.map((show) => (
+                {paginatedShows.map(show => (
                   <ShowListItem
                     key={show.id}
                     show={show}
@@ -213,7 +206,7 @@ export function ShowsList() {
                 ))}
               </div>
             )}
-            
+
             {shows.length > itemsPerPage && (
               <ShowListPagination
                 currentPage={currentPage}
@@ -225,15 +218,18 @@ export function ShowsList() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!showIdToDelete} onOpenChange={(open) => {
-        if (!open) setShowIdToDelete(null);
-      }}>
+      <AlertDialog
+        open={!!showIdToDelete}
+        onOpenChange={open => {
+          if (!open) setShowIdToDelete(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this show and all its episodes.
-              This action cannot be undone.
+              This will permanently delete this show and all its episodes. This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -244,4 +240,4 @@ export function ShowsList() {
       </AlertDialog>
     </>
   );
-} 
+}

@@ -1,5 +1,5 @@
-import React from "react";
-import { Loader2 } from "lucide-react";
+import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 interface LoadingStateProps {
   isLoading: boolean;
@@ -12,7 +12,7 @@ export function LoadingState({
   isLoading,
   error,
   children,
-  loadingText = "Loading...",
+  loadingText = 'Loading...',
 }: LoadingStateProps) {
   if (isLoading) {
     return (
@@ -33,4 +33,4 @@ export function LoadingState({
   }
 
   return <>{children}</>;
-} 
+}

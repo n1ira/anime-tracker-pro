@@ -5,4 +5,4 @@ export const logsTable = pgTable('logs', {
   level: varchar('level', { length: 20 }).notNull().default('info'),
   message: text('message').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
-}); 
+});

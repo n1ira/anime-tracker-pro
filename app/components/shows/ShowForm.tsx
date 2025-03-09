@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/app/components/ui/card';
@@ -47,12 +47,6 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   const [isEpisodesPerSeasonArray, setIsEpisodesPerSeasonArray] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (isEditing && showId) {
-      fetchShow();
-    }
-  }, [isEditing, showId]);
-
   const fetchShow = async () => {
     try {
       setFetchLoading(true);
@@ -60,56 +54,68 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch show');
       }
+
       const data = await response.json();
-      
-      // Parse alternateNames from JSON string to array
-      let parsedAlternateNames: string[] = [];
-      try {
-        parsedAlternateNames = JSON.parse(data.alternateNames || '[]');
-      } catch (e) {
-        console.error('Error parsing alternateNames:', e);
-      }
-      
-      // Check if episodesPerSeason is an array
-      let isArray = false;
-      try {
-        const parsed = JSON.parse(data.episodesPerSeason);
-        isArray = Array.isArray(parsed);
-        
-        // If it's an array, convert it to comma-separated string for the form
-        if (isArray) {
-          data.episodesPerSeason = parsed.join(', ');
+      if (data.success && data.data) {
+        const showData = data.data;
+
+        // Handle episodesPerSeason format
+        if (showData.episodesPerSeason) {
+          try {
+            const parsedEpisodes = JSON.parse(showData.episodesPerSeason);
+            // If it's an array, set the array mode
+            if (Array.isArray(parsedEpisodes)) {
+              setIsEpisodesPerSeasonArray(true);
+              showData.episodesPerSeason = parsedEpisodes.join(',');
+            } else {
+              setIsEpisodesPerSeasonArray(false);
+            }
+          } catch (e) {
+            // Not JSON, assume it's a single number as string
+            setIsEpisodesPerSeasonArray(false);
+          }
         }
-      } catch (e) {
-        // Not JSON, so it's a single number
-        isArray = false;
+
+        // Parse alternate names
+        if (showData.alternateNames) {
+          try {
+            const parsed = JSON.parse(showData.alternateNames);
+            setAlternateNames(Array.isArray(parsed) ? parsed : []);
+          } catch (e) {
+            setAlternateNames([]);
+          }
+        }
+
+        setShow(showData);
       }
-      
-      setShow(data);
-      setAlternateNames(parsedAlternateNames);
-      setIsEpisodesPerSeasonArray(isArray);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+    } catch (error) {
+      console.error('Error fetching show:', error);
+      setError('Failed to fetch show. Please try again.');
     } finally {
       setFetchLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (isEditing && showId) {
+      fetchShow();
+    }
+  }, [isEditing, showId, fetchShow]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     // Handle numeric fields
     if (['startSeason', 'startEpisode', 'endSeason', 'endEpisode'].includes(name)) {
       const numValue = parseInt(value, 10);
       setShow(prev => ({
         ...prev,
-        [name]: isNaN(numValue) ? 0 : numValue
+        [name]: isNaN(numValue) ? 0 : numValue,
       }));
     } else {
       setShow(prev => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
   };
@@ -127,40 +133,42 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Prepare the show data for submission
     const preparedShow = { ...show };
-    
+
     // Convert alternateNames array to JSON string
     preparedShow.alternateNames = JSON.stringify(alternateNames);
-    
+
     // Handle episodesPerSeason based on whether it's an array or single value
     if (isEpisodesPerSeasonArray) {
       try {
-        const episodesArray = show.episodesPerSeason.split(',').map(num => parseInt(num.trim(), 10));
+        const episodesArray = show.episodesPerSeason
+          .split(',')
+          .map(num => parseInt(num.trim(), 10));
         preparedShow.episodesPerSeason = JSON.stringify(episodesArray);
       } catch (err) {
         setError('Invalid episodes per season format');
         return;
       }
     }
-    
+
     // Validate the form
     const isValid = validateShowForm({
       show: preparedShow,
       isEpisodesPerSeasonArray,
       alternateNames,
-      setError
+      setError,
     });
-    
+
     if (!isValid) return;
-    
+
     try {
       setLoading(true);
-      
+
       const url = isEditing ? `/api/shows/${showId}` : '/api/shows';
       const method = isEditing ? 'PATCH' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -168,15 +176,14 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
         },
         body: JSON.stringify(preparedShow),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to save show');
       }
-      
+
       // Redirect to the shows list on success
       router.push('/');
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setLoading(false);
@@ -189,12 +196,12 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back
       </Button>
-      
+
       <Card className="shadow-md">
         <CardHeader>
           <CardTitle>{isEditing ? 'Edit Show' : 'Add New Show'}</CardTitle>
         </CardHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <CardContent>
             {fetchLoading ? (
@@ -215,16 +222,12 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
               />
             )}
           </CardContent>
-          
+
           <CardFooter>
-            <SubmitHandler
-              isEditing={isEditing}
-              loading={loading}
-              error={error}
-            />
+            <SubmitHandler isEditing={isEditing} loading={loading} error={error} />
           </CardFooter>
         </form>
       </Card>
     </div>
   );
-} 
+}

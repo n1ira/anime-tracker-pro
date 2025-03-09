@@ -8,15 +8,15 @@ interface ShowListPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export function ShowListPagination({ 
-  currentPage, 
-  totalPages, 
-  onPageChange 
+export function ShowListPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
 }: ShowListPaginationProps) {
   if (totalPages <= 1) {
     return null;
   }
-  
+
   return (
     <div className="flex justify-center items-center space-x-2 mt-4">
       <Button
@@ -28,11 +28,11 @@ export function ShowListPagination({
         <ChevronLeft className="h-4 w-4" />
         Previous
       </Button>
-      
+
       <div className="text-sm">
         Page {currentPage} of {totalPages}
       </div>
-      
+
       <Button
         variant="outline"
         size="sm"
@@ -44,4 +44,4 @@ export function ShowListPagination({
       </Button>
     </div>
   );
-} 
+}

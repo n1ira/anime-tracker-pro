@@ -14,11 +14,11 @@ export function Header() {
             </span>
           </Link>
         </div>
-        
+
         {/* Settings and Theme toggle positioned at the right */}
         <div className="ml-auto flex items-center space-x-4">
-          <Link 
-            href="/settings" 
+          <Link
+            href="/settings"
             className="p-2 hover:bg-accent rounded-md transition-colors"
             title="Settings"
           >
@@ -29,4 +29,4 @@ export function Header() {
       </div>
     </header>
   );
-} 
+}

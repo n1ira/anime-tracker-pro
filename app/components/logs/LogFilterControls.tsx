@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/app/components/ui/alert-dialog";
+} from '@/app/components/ui/alert-dialog';
 
 interface LogFilterControlsProps {
   onClearLogs: () => void;
@@ -26,28 +26,20 @@ export function LogFilterControls({
   onRefreshLogs,
   clearLoading,
   clearError,
-  setClearDialogOpen
+  setClearDialogOpen,
 }: LogFilterControlsProps) {
   return (
     <div className="flex justify-between items-center mb-4">
       <div className="flex space-x-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onRefreshLogs}
-        >
+        <Button variant="outline" size="sm" onClick={onRefreshLogs}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
-      
+
       <AlertDialog onOpenChange={setClearDialogOpen}>
         <AlertDialogTrigger asChild>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            disabled={clearLoading}
-          >
+          <Button variant="destructive" size="sm" disabled={clearLoading}>
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Logs
           </Button>
@@ -74,4 +66,4 @@ export function LogFilterControls({
       </AlertDialog>
     </div>
   );
-} 
+}

@@ -10,7 +10,7 @@ interface ShowActionsProps {
 
 export function ShowActions({ showId, onBack }: ShowActionsProps) {
   const router = useRouter();
-  
+
   return (
     <div className="flex items-center justify-between">
       <Button variant="outline" onClick={onBack}>
@@ -25,4 +25,4 @@ export function ShowActions({ showId, onBack }: ShowActionsProps) {
       </div>
     </div>
   );
-} 
+}

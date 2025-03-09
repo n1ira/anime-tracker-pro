@@ -1,7 +1,13 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Loader2, RefreshCw, ArrowLeft, Play, Edit, ChevronDown, ChevronRight } from 'lucide-react';
@@ -12,7 +18,7 @@ import { getSeasonAndEpisode } from '@/app/utils/episodeCalculator';
 // Dynamically import the EpisodesPerSeasonEditor component
 const EpisodesPerSeasonEditor = dynamic(() => import('./EpisodesPerSeasonEditor'), {
   ssr: false,
-  loading: () => <span>Loading...</span>
+  loading: () => <span>Loading...</span>,
 });
 
 interface Episode {
@@ -98,8 +104,10 @@ export function ShowDetail({ showId }: ShowDetailProps) {
   // Group episodes by season when they're loaded or show data changes
   useEffect(() => {
     if (episodes.length > 0 && show) {
-      console.log(`Grouping ${episodes.length} episodes for show "${show.title}" (range: S${show.startSeason || 1}E${show.startEpisode || 1} to S${show.endSeason || 1}E${show.endEpisode || 1})`);
-      
+      console.log(
+        `Grouping ${episodes.length} episodes for show "${show.title}" (range: S${show.startSeason || 1}E${show.startEpisode || 1} to S${show.endSeason || 1}E${show.endEpisode || 1})`
+      );
+
       // Parse episodesPerSeason
       let episodesPerSeason: number | number[] = 12;
       if (show.episodesPerSeason) {
@@ -119,7 +127,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
       // Calculate season for each episode
       const groupedEpisodes: Record<number, Episode[]> = {};
       const newExpandedState: Record<number, boolean> = {};
-      
+
       // Preprocess episodes to add season information
       const updatedEpisodes = episodes.map(episode => {
         const { season, episode: episodeInSeason } = getSeasonAndEpisode(
@@ -127,16 +135,16 @@ export function ShowDetail({ showId }: ShowDetailProps) {
           show.title,
           { [show.title]: { episodes_per_season: episodesPerSeason } }
         );
-        
+
         console.log(`Episode #${episode.episodeNumber} maps to S${season}E${episodeInSeason}`);
-        
+
         return {
           ...episode,
           season,
-          episodeInSeason
+          episodeInSeason,
         };
       });
-      
+
       // Group episodes by season
       updatedEpisodes.forEach(episode => {
         const season = episode.season || 1;
@@ -147,7 +155,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
         }
         groupedEpisodes[season].push(episode);
       });
-      
+
       // Clear any empty season groups if there are no episodes for them
       Object.keys(groupedEpisodes).forEach(season => {
         if (groupedEpisodes[Number(season)].length === 0) {
@@ -155,12 +163,12 @@ export function ShowDetail({ showId }: ShowDetailProps) {
           delete newExpandedState[Number(season)];
         }
       });
-      
+
       console.log(`Grouped episodes into ${Object.keys(groupedEpisodes).length} seasons`);
       Object.entries(groupedEpisodes).forEach(([season, eps]) => {
         console.log(`Season ${season}: ${eps.length} episodes`);
       });
-      
+
       setEpisodesBySeason(groupedEpisodes);
       // Only initialize expanded state if it hasn't been set before
       if (Object.keys(expandedSeasons).length === 0) {
@@ -174,7 +182,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
     if (episodes.length > 0) {
       // Total episodes is simply the count of episodes
       setTotalEpisodes(episodes.length);
-      
+
       // Current episode is the number of downloaded episodes
       const downloadedCount = episodes.filter(ep => ep.isDownloaded).length;
       setCurrentEpisode(downloadedCount);
@@ -184,14 +192,14 @@ export function ShowDetail({ showId }: ShowDetailProps) {
   const toggleSeasonCollapse = (season: number) => {
     setExpandedSeasons(prev => ({
       ...prev,
-      [season]: !prev[season]
+      [season]: !prev[season],
     }));
   };
 
   const toggleEpisodeStatus = async (episode: Episode) => {
     try {
       console.log('Toggling episode status:', episode);
-      
+
       const response = await fetch(`/api/shows/${showId}/episodes/${episode.id}`, {
         method: 'PUT',
         headers: {
@@ -212,12 +220,10 @@ export function ShowDetail({ showId }: ShowDetailProps) {
       console.log('Updated episode from server:', updatedEpisode);
 
       // Update the episodes list with the toggled status
-      setEpisodes(episodes.map(ep => 
-        ep.id === episode.id 
-          ? { ...ep, isDownloaded: !ep.isDownloaded } 
-          : ep
-      ));
-      
+      setEpisodes(
+        episodes.map(ep => (ep.id === episode.id ? { ...ep, isDownloaded: !ep.isDownloaded } : ep))
+      );
+
       console.log('Episodes state updated');
     } catch (err) {
       console.error('Error updating episode:', err);
@@ -246,7 +252,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
     if (show) {
       setShow({
         ...show,
-        episodesPerSeason: newValue
+        episodesPerSeason: newValue,
       });
       // Refresh show data to reflect the changes
       fetchShow();
@@ -294,12 +300,15 @@ export function ShowDetail({ showId }: ShowDetailProps) {
         <CardHeader className="border-b bg-muted/20">
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">{show.title}</CardTitle>
+              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 text-transparent bg-clip-text">
+                {show.title}
+              </CardTitle>
               <CardDescription>
-                Status: {show.status} | Episodes: {currentEpisode}/{totalEpisodes || '?'} 
-                {(show.startSeason && show.endSeason) ? (
+                Status: {show.status} | Episodes: {currentEpisode}/{totalEpisodes || '?'}
+                {show.startSeason && show.endSeason ? (
                   <span className="ml-1 text-xs">
-                    (Range: S{show.startSeason}E{show.startEpisode} - S{show.endSeason}E{show.endEpisode})
+                    (Range: S{show.startSeason}E{show.startEpisode} - S{show.endSeason}E
+                    {show.endEpisode})
                   </span>
                 ) : null}
               </CardDescription>
@@ -326,7 +335,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
                   {show.lastScanned ? new Date(show.lastScanned).toLocaleString() : 'Never'}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="font-semibold">Episodes per Season:</span>
                 <div className="flex items-center gap-2">
@@ -345,7 +354,7 @@ export function ShowDetail({ showId }: ShowDetailProps) {
                         })()
                       : '12'}
                   </span>
-                  <EpisodesPerSeasonEditor 
+                  <EpisodesPerSeasonEditor
                     showId={show.id}
                     showTitle={show.title}
                     initialEpisodesPerSeason={show.episodesPerSeason || '12'}
@@ -354,9 +363,9 @@ export function ShowDetail({ showId }: ShowDetailProps) {
                 </div>
               </div>
             </div>
-            
+
             <h3 className="text-lg font-semibold mt-4">Episodes</h3>
-            
+
             {episodesLoading ? (
               <div className="flex justify-center items-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -372,65 +381,66 @@ export function ShowDetail({ showId }: ShowDetailProps) {
                   const isExpanded = expandedSeasons[season];
                   const downloadedInSeason = seasonEpisodes.filter(ep => ep.isDownloaded).length;
                   const totalInSeason = seasonEpisodes.length;
-                  
+
                   return (
                     <div key={`season-${season}`} className="border rounded-md overflow-hidden">
-                      <div 
+                      <div
                         className="flex items-center justify-between p-3 bg-muted/30 cursor-pointer hover:bg-muted/50"
                         onClick={() => toggleSeasonCollapse(season)}
                       >
                         <div className="flex items-center gap-2">
-                          {isExpanded ? 
-                            <ChevronDown className="h-4 w-4" /> : 
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
                             <ChevronRight className="h-4 w-4" />
-                          }
+                          )}
                           <h4 className="font-medium">Season {season}</h4>
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {downloadedInSeason}/{totalInSeason} episodes
                         </div>
                       </div>
-                      
+
                       {isExpanded && (
                         <div className="p-3">
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {seasonEpisodes.map((episode) => (
+                            {seasonEpisodes.map(episode => (
                               <div
                                 key={episode.id}
                                 className={`p-3 rounded-md border cursor-pointer transition-colors ${
-                                  episode.isDownloaded 
-                                    ? 'bg-success/10 hover:bg-success/20 border-success/30' 
+                                  episode.isDownloaded
+                                    ? 'bg-success/10 hover:bg-success/20 border-success/30'
                                     : 'hover:bg-accent/50'
                                 }`}
-                                onClick={(e) => {
+                                onClick={e => {
                                   e.preventDefault();
                                   toggleEpisodeStatus(episode);
                                 }}
                               >
                                 <div className="flex justify-between items-center">
                                   <span className="font-medium">
-                                    Episode {episode.episodeInSeason} 
+                                    Episode {episode.episodeInSeason}
                                     <span className="text-xs text-muted-foreground ml-1">
                                       (#{episode.episodeNumber})
                                     </span>
                                   </span>
-                                  <Badge variant={episode.isDownloaded ? "success" : "outline"}>
+                                  <Badge variant={episode.isDownloaded ? 'success' : 'outline'}>
                                     {episode.isDownloaded ? 'Downloaded' : 'Needed'}
                                   </Badge>
                                 </div>
                                 {episode.magnetLink && (
                                   <div className="mt-2">
-                                    <a 
+                                    <a
                                       href="#"
                                       className="text-xs text-blue-500 hover:underline"
-                                      onClick={(e) => {
+                                      onClick={e => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        
+
                                         if (episode.magnetLink) {
                                           // Try to open the magnet link
                                           const opened = window.open(episode.magnetLink);
-                                          
+
                                           // If window.open returns null or undefined, or browser blocks it
                                           if (!opened) {
                                             // Fallback to location.href
@@ -458,4 +468,4 @@ export function ShowDetail({ showId }: ShowDetailProps) {
       </Card>
     </div>
   );
-} 
+}

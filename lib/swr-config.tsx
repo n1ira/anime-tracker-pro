@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { SWRConfig } from 'swr';
 import React from 'react';
@@ -6,7 +6,7 @@ import React from 'react';
 // Default fetcher for SWR
 export const fetcher = async (url: string) => {
   const response = await fetch(url);
-  
+
   if (!response.ok) {
     const error = new Error('An error occurred while fetching the data.');
     // Add extra info to the error object
@@ -14,7 +14,7 @@ export const fetcher = async (url: string) => {
     (error as any).status = response.status;
     throw error;
   }
-  
+
   return response.json();
 };
 
@@ -36,4 +36,4 @@ export const swrConfig = {
 export function SWRProvider({ children }: { children: React.ReactNode }) {
   // Provide the fetcher function directly in the component
   return <SWRConfig value={{ ...swrConfig, fetcher }}>{children}</SWRConfig>;
-} 
+}

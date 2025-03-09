@@ -2,17 +2,17 @@
 const nextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
-  
+
   // Configure server options
   serverRuntimeConfig: {
     // Server-side only config
   },
-  
+
   // Configure public runtime options
   publicRuntimeConfig: {
     // Config accessible on both server and client
   },
-  
+
   // Configure response headers
   async headers() {
     return [
@@ -35,6 +35,6 @@ const nextConfig = {
       },
     ];
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

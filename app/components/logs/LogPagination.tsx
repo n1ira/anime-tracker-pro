@@ -8,15 +8,11 @@ interface LogPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export function LogPagination({ 
-  currentPage, 
-  totalPages, 
-  onPageChange 
-}: LogPaginationProps) {
+export function LogPagination({ currentPage, totalPages, onPageChange }: LogPaginationProps) {
   if (totalPages <= 1) {
     return null;
   }
-  
+
   return (
     <div className="flex justify-center items-center space-x-2 mt-4">
       <Button
@@ -28,7 +24,7 @@ export function LogPagination({
         <ChevronLeft className="h-4 w-4 mr-1" />
         Previous
       </Button>
-      
+
       <div className="flex items-center space-x-1">
         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
           // Show pages around current page
@@ -42,11 +38,11 @@ export function LogPagination({
           } else {
             pageNum = currentPage - 2 + i;
           }
-          
+
           return (
             <Button
               key={pageNum}
-              variant={currentPage === pageNum ? "default" : "outline"}
+              variant={currentPage === pageNum ? 'default' : 'outline'}
               size="sm"
               className="w-8 h-8 p-0"
               onClick={() => onPageChange(pageNum)}
@@ -56,7 +52,7 @@ export function LogPagination({
           );
         })}
       </div>
-      
+
       <Button
         variant="outline"
         size="sm"
@@ -68,4 +64,4 @@ export function LogPagination({
       </Button>
     </div>
   );
-} 
+}

@@ -7,4 +7,4 @@ export const scanStateTable = pgTable('scan_state', {
   status: varchar('status', { length: 50 }).default('idle'),
   startedAt: timestamp('started_at'),
   updatedAt: timestamp('updated_at').defaultNow(),
-}); 
+});

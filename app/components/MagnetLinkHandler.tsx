@@ -3,7 +3,14 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/app/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/app/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/app/components/ui/dialog';
 import { Input } from '@/app/components/ui/input';
 
 // This component listens for events from the server-sent events stream
@@ -17,7 +24,7 @@ export function MagnetLinkHandler() {
   const openMagnetLink = (magnetLink: string) => {
     // Try to open the magnet link directly
     const opened = window.open(magnetLink);
-    
+
     // If window.open returns null or undefined, or browser blocks it
     if (!opened) {
       // Show dialog with the magnet link for manual copying
@@ -29,11 +36,12 @@ export function MagnetLinkHandler() {
   // Function to copy magnet link to clipboard
   const copyToClipboard = () => {
     if (pendingMagnetLink) {
-      navigator.clipboard.writeText(pendingMagnetLink)
+      navigator.clipboard
+        .writeText(pendingMagnetLink)
         .then(() => {
           toast.success('Magnet link copied to clipboard');
         })
-        .catch((err) => {
+        .catch(err => {
           console.error('Failed to copy: ', err);
           toast.error('Failed to copy magnet link');
         });
@@ -51,13 +59,13 @@ export function MagnetLinkHandler() {
           },
           body: JSON.stringify({ showId, season, episode }),
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to search for torrents');
         }
-        
+
         const data = await response.json();
-        
+
         // If a magnet link should be opened, open it
         if (data.openMagnetLink) {
           setEpisodeInfo(`Episode ${episode}`);
@@ -69,11 +77,11 @@ export function MagnetLinkHandler() {
         toast.error('Failed to search for torrents');
       }
     };
-    
+
     // Listen for scan events from the server
     const eventSource = new EventSource('/api/scan/events');
-    
-    eventSource.addEventListener('episodeFound', (event) => {
+
+    eventSource.addEventListener('episodeFound', event => {
       try {
         const data = JSON.parse(event.data);
         if (data.showId && data.season !== undefined && data.episode !== undefined) {
@@ -83,22 +91,22 @@ export function MagnetLinkHandler() {
         console.error('Error parsing episode found event:', error);
       }
     });
-    
-    eventSource.onerror = (error) => {
+
+    eventSource.onerror = error => {
       console.error('EventSource error:', error);
       eventSource.close();
-      
+
       // Try to reconnect after a delay
       setTimeout(() => {
         // This component will be remounted, which will create a new EventSource
       }, 5000);
     };
-    
+
     return () => {
       eventSource.close();
     };
   }, []);
-  
+
   return (
     <>
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -106,24 +114,24 @@ export function MagnetLinkHandler() {
           <DialogHeader>
             <DialogTitle>Magnet Link for {episodeInfo}</DialogTitle>
             <DialogDescription>
-              Your browser blocked the automatic opening of the magnet link. 
-              You can copy the link below and paste it into your torrent client.
+              Your browser blocked the automatic opening of the magnet link. You can copy the link
+              below and paste it into your torrent client.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="flex items-center space-x-2 mt-4">
-            <Input 
-              value={pendingMagnetLink || ''} 
-              readOnly 
-              onClick={(e) => (e.target as HTMLInputElement).select()}
+            <Input
+              value={pendingMagnetLink || ''}
+              readOnly
+              onClick={e => (e.target as HTMLInputElement).select()}
             />
             <Button onClick={copyToClipboard}>Copy</Button>
           </div>
-          
+
           <DialogFooter className="mt-4">
             <Button onClick={() => setShowDialog(false)}>Close</Button>
-            <Button 
-              variant="default" 
+            <Button
+              variant="default"
               onClick={() => {
                 if (pendingMagnetLink) {
                   window.location.href = pendingMagnetLink;
@@ -137,4 +145,4 @@ export function MagnetLinkHandler() {
       </Dialog>
     </>
   );
-} 
+}

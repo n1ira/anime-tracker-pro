@@ -14,7 +14,7 @@ export function EpisodesPerSeasonEditor({
   showId,
   showTitle,
   initialEpisodesPerSeason,
-  onUpdate
+  onUpdate,
 }: EpisodesPerSeasonEditorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [episodesPerSeasonValue, setEpisodesPerSeasonValue] = useState('');
@@ -49,7 +49,7 @@ export function EpisodesPerSeasonEditor({
   const handleSubmit = async () => {
     try {
       let episodesPerSeason;
-      
+
       if (isArray) {
         // Parse comma-separated values into an array of numbers
         episodesPerSeason = episodesPerSeasonValue
@@ -75,10 +75,10 @@ export function EpisodesPerSeasonEditor({
       }
 
       // Format the value for display
-      const formattedValue = isArray 
-        ? JSON.stringify(episodesPerSeason) 
+      const formattedValue = isArray
+        ? JSON.stringify(episodesPerSeason)
         : episodesPerSeason.toString();
-      
+
       onUpdate(formattedValue);
       alert(`Episodes per season updated for ${showTitle}`);
       setIsModalOpen(false);
@@ -103,9 +103,10 @@ export function EpisodesPerSeasonEditor({
     } else {
       // Converting from array to single number
       try {
-        const average = episodesArray.length > 0 
-          ? Math.round(episodesArray.reduce((a, b) => a + b, 0) / episodesArray.length)
-          : 12;
+        const average =
+          episodesArray.length > 0
+            ? Math.round(episodesArray.reduce((a, b) => a + b, 0) / episodesArray.length)
+            : 12;
         setEpisodesPerSeasonValue(average.toString());
       } catch (e) {
         setEpisodesPerSeasonValue('12');
@@ -116,7 +117,12 @@ export function EpisodesPerSeasonEditor({
   // Simple modal implementation with CSS
   if (!isModalOpen) {
     return (
-      <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setIsModalOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1"
+        onClick={() => setIsModalOpen(true)}
+      >
         <Edit className="h-3.5 w-3.5" />
         <span className="sr-only md:not-sr-only">Edit</span>
       </Button>
@@ -136,4 +142,4 @@ export function EpisodesPerSeasonEditor({
   );
 }
 
-export default EpisodesPerSeasonEditor; 
+export default EpisodesPerSeasonEditor;

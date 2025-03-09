@@ -18,4 +18,4 @@ export type ScanState = {
 export type ScanResult = {
   success: boolean;
   message: string;
-}; 
+};

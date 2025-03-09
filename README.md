@@ -32,28 +32,33 @@ A modern web application for tracking and automatically finding anime episodes. 
 ## Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/anime-tracker-pro.git
    cd anime-tracker-pro
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Create a `.env.local` file in the root directory with the following variables:
+
    ```
    DATABASE_URL=postgresql://username:password@localhost:5432/anime_tracker
    OPENAI_API_KEY=your_openai_api_key (optional, can be set in the app)
    ```
 
 4. Run the database migrations:
+
    ```bash
    npm run db:migrate
    ```
 
 5. Start the development server:
+
    ```bash
    npm run dev
    ```

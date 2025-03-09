@@ -26,11 +26,11 @@ function cleanupStaleClients() {
     clearTimeout(cleanupTimeoutRef);
     cleanupTimeoutRef = null;
   }
-  
+
   const now = Date.now();
   const clientsToRemove = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
-  let initialClientCount = clients.size;
-  
+  const initialClientCount = clients.size;
+
   clients.forEach(clientRef => {
     try {
       const client = clientRef.deref();
@@ -40,7 +40,7 @@ function cleanupStaleClients() {
       } else {
         // Check if connection has been open too long
         const connectTime = clientConnectTimes.get(clientRef);
-        if (connectTime && (now - connectTime > MAX_CONNECTION_TIME)) {
+        if (connectTime && now - connectTime > MAX_CONNECTION_TIME) {
           console.log('Closing client connection that has been open for too long');
           clientsToRemove.add(clientRef);
           try {
@@ -55,7 +55,7 @@ function cleanupStaleClients() {
       clientsToRemove.add(clientRef);
     }
   });
-  
+
   // Remove stale clients
   let removedCount = 0;
   clientsToRemove.forEach(clientRef => {
@@ -64,12 +64,14 @@ function cleanupStaleClients() {
     }
     clientConnectTimes.delete(clientRef);
   });
-  
+
   // Log cleanup results if any clients were removed
   if (removedCount > 0) {
-    console.log(`Cleaned up ${removedCount} stale clients. Clients before: ${initialClientCount}, after: ${clients.size}`);
+    console.log(
+      `Cleaned up ${removedCount} stale clients. Clients before: ${initialClientCount}, after: ${clients.size}`
+    );
   }
-  
+
   // Schedule next cleanup if we still have clients
   if (clients.size > 0) {
     cleanupTimeoutRef = setTimeout(cleanupStaleClients, 30000); // Run cleanup every 30 seconds
@@ -83,17 +85,17 @@ export function sendSSEMessage(data: any) {
     console.log('No clients connected, skipping message send');
     return null;
   }
-  
+
   let activeClients = 0;
   const clientsToRemove = new Set<WeakRef<ReadableStreamController<Uint8Array>>>();
-  
+
   // Encode the data as an SSE message
   const message = `data: ${JSON.stringify(data)}\n\n`;
   const encoder = new TextEncoder();
   const encoded = encoder.encode(message);
-  
+
   // Send to all clients
-  clients.forEach((clientRef) => {
+  clients.forEach(clientRef => {
     try {
       const controller = clientRef.deref();
       // If the controller has been garbage collected or is closed, mark for removal
@@ -101,7 +103,7 @@ export function sendSSEMessage(data: any) {
         clientsToRemove.add(clientRef);
         return;
       }
-      
+
       // Extra check - try to access desiredSize which will throw if controller is closed
       try {
         // This will throw if the controller is already closed
@@ -115,7 +117,7 @@ export function sendSSEMessage(data: any) {
         clientsToRemove.add(clientRef);
         return;
       }
-      
+
       // If we got here, the controller should be valid
       try {
         controller.enqueue(encoded);
@@ -129,29 +131,31 @@ export function sendSSEMessage(data: any) {
       clientsToRemove.add(clientRef);
     }
   });
-  
+
   // Remove any stale clients we found during this operation
   if (clientsToRemove.size > 0) {
     clientsToRemove.forEach(ref => {
       clients.delete(ref);
       clientConnectTimes.delete(ref);
     });
-    
-    console.log(`Removed ${clientsToRemove.size} stale clients. Remaining clients: ${clients.size}`);
+
+    console.log(
+      `Removed ${clientsToRemove.size} stale clients. Remaining clients: ${clients.size}`
+    );
   }
-  
+
   // Log message sent - use activeClients for accuracy
   if (activeClients > 0) {
     console.log(`Successfully sent SSE message to ${activeClients} clients`);
   } else if (clientsToRemove.size > 0) {
     console.log(`No active clients found. Removed ${clientsToRemove.size} stale clients.`);
   }
-  
+
   // If we have stale clients, schedule a cleanup
   if (clientsToRemove.size > 0 && !cleanupTimeoutRef) {
     cleanupTimeoutRef = setTimeout(cleanupStaleClients, 0);
   }
-  
+
   // Return the message for testing/debugging
   return message;
 }
@@ -166,11 +170,8 @@ let isPolling = false;
 // Initialize lastLogId with the highest log ID
 async function initLastLogId() {
   try {
-    const latestLog = await db.select()
-      .from(logsTable)
-      .orderBy(desc(logsTable.id))
-      .limit(1);
-    
+    const latestLog = await db.select().from(logsTable).orderBy(desc(logsTable.id)).limit(1);
+
     if (latestLog.length > 0) {
       lastLogId = latestLog[0].id;
       console.log(`Initialized lastLogId to ${lastLogId}`);
@@ -193,7 +194,7 @@ async function pollForNewLogs() {
   // Check if already polling
   if (isPolling) return;
   isPolling = true;
-  
+
   try {
     // Run a cleanup first to ensure we have accurate client count
     // This will remove any stale clients before we try to send messages
@@ -201,7 +202,7 @@ async function pollForNewLogs() {
       cleanupStaleClients();
       resolve();
     });
-    
+
     // After cleanup, check again if we have clients
     if (clients.size === 0) {
       console.log('No clients left after polling, stopping polling cycle');
@@ -209,25 +210,26 @@ async function pollForNewLogs() {
       isPolling = false;
       return;
     }
-    
+
     // Query for new logs since the last one we saw
-    const newLogs = await db.select()
+    const newLogs = await db
+      .select()
       .from(logsTable)
       .where(gt(logsTable.id, lastLogId))
       .orderBy(asc(logsTable.id));
-    
+
     if (newLogs.length > 0) {
       // Update the last log ID
       lastLogId = newLogs[newLogs.length - 1].id;
       console.log(`Fetched ${newLogs.length} new logs. Updated lastLogId to ${lastLogId}`);
-      
+
       try {
         // Dynamically import the summarizeLogs function to avoid circular imports
         const { summarizeLogs } = await import('../route');
-        
+
         // Generate summaries from the new logs
         const summaryData = summarizeLogs(newLogs);
-        
+
         // Check if we still have clients after the async operations
         let activeClients = 0;
         clients.forEach(clientRef => {
@@ -236,7 +238,7 @@ async function pollForNewLogs() {
             activeClients++;
           }
         });
-        
+
         // Only send data if we still have active clients
         if (activeClients > 0) {
           // If we have too many logs, handle them in batches
@@ -244,9 +246,9 @@ async function pollForNewLogs() {
             // First send just the summaries
             sendSSEMessage({
               type: 'summaries_update',
-              summaries: summaryData
+              summaries: summaryData,
             });
-            
+
             // Then send logs in smaller batches
             const batchSize = 5;
             for (let i = 0; i < newLogs.length; i += batchSize) {
@@ -258,15 +260,15 @@ async function pollForNewLogs() {
                   stillHaveClients = true;
                 }
               });
-              
+
               if (!stillHaveClients) break;
-              
+
               const batch = newLogs.slice(i, i + batchSize);
-              sendSSEMessage({ 
+              sendSSEMessage({
                 type: 'logs_update',
                 logs: batch,
                 // Only include summaries in the first batch to avoid duplication
-                summaries: i === 0 ? summaryData : [] 
+                summaries: i === 0 ? summaryData : [],
               });
             }
           } else {
@@ -274,7 +276,7 @@ async function pollForNewLogs() {
             sendSSEMessage({
               type: 'logs_update',
               logs: newLogs,
-              summaries: summaryData
+              summaries: summaryData,
             });
           }
         } else {
@@ -284,7 +286,7 @@ async function pollForNewLogs() {
         console.error('Error processing logs or summaries:', error);
       }
     }
-    
+
     // Schedule next poll if we still have clients
     if (clients.size > 0) {
       pollingTimeoutRef = setTimeout(pollForNewLogs, POLLING_INTERVAL);
@@ -317,10 +319,12 @@ export async function GET() {
         clients.add(clientRef);
         clientConnectTimes.set(clientRef, Date.now());
         console.log(`Client connected. Total clients: ${clients.size}`);
-        
+
         // Send initial message
-        controller.enqueue(new TextEncoder().encode('data: {"message": "Connected to logs stream"}\n\n'));
-        
+        controller.enqueue(
+          new TextEncoder().encode('data: {"message": "Connected to logs stream"}\n\n')
+        );
+
         // Start polling if not already polling
         // We need to check both isPolling and pollingTimeoutRef to handle all cases
         if (!isPolling && !pollingTimeoutRef) {
@@ -331,7 +335,7 @@ export async function GET() {
         } else if (isPolling) {
           console.log('Polling already in progress');
         }
-        
+
         // Start cleanup if not already running
         if (!cleanupTimeoutRef) {
           cleanupTimeoutRef = setTimeout(cleanupStaleClients, 10000);
@@ -345,7 +349,7 @@ export async function GET() {
         // We can't directly remove this client since we don't have a reference to the WeakRef
         // But we can trigger a cleanup to remove any stale clients
         console.log(`Client disconnected. Remaining clients: ${clients.size - 1}`);
-        
+
         // Force an immediate cleanup to remove this client
         if (!cleanupTimeoutRef) {
           cleanupTimeoutRef = setTimeout(cleanupStaleClients, 0);
@@ -353,7 +357,7 @@ export async function GET() {
       } catch (error) {
         console.error('Error in SSE cancel handler:', error);
       }
-    }
+    },
   });
 
   // Return the stream with appropriate headers
@@ -361,8 +365,8 @@ export async function GET() {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
-    }
+      Connection: 'keep-alive',
+    },
   });
 }
 
@@ -376,7 +380,7 @@ const sendMessageToClients = async (recentLogs = []) => {
 
     // Import summarizeLogs dynamically to avoid circular imports
     const { summarizeLogs } = await import('../route');
-    
+
     // Create summaries from the recent logs
     let summaryData: any[] = [];
     try {
@@ -384,32 +388,32 @@ const sendMessageToClients = async (recentLogs = []) => {
     } catch (error) {
       console.error('Error generating summaries:', error);
     }
-    
+
     // If we have too many logs, don't send them all at once to avoid large payloads
     // Instead, send the summaries with an empty logs array
     if (recentLogs.length > 10) {
-      sendSSEMessage({ 
+      sendSSEMessage({
         type: 'summaries_update',
-        summaries: summaryData
+        summaries: summaryData,
       });
-      
+
       // Then send logs in smaller batches
       const batchSize = 5;
       for (let i = 0; i < recentLogs.length; i += batchSize) {
         const batch = recentLogs.slice(i, i + batchSize);
-        sendSSEMessage({ 
+        sendSSEMessage({
           type: 'logs_update',
           logs: batch,
-          summaries: i === 0 ? summaryData : [] // Only include summaries in the first batch
+          summaries: i === 0 ? summaryData : [], // Only include summaries in the first batch
         });
       }
     } else {
       // For small log batches, send everything together
-      sendSSEMessage({ 
+      sendSSEMessage({
         type: 'logs_update',
         logs: recentLogs,
-        summaries: summaryData
+        summaries: summaryData,
       });
     }
   }
-}; 
+};

@@ -16,12 +16,8 @@ export function SubmitHandler({ isEditing, loading, error }: SubmitHandlerProps)
           {error}
         </div>
       )}
-      
-      <Button 
-        type="submit" 
-        disabled={loading}
-        className="w-full"
-      >
+
+      <Button type="submit" disabled={loading} className="w-full">
         {loading ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -36,4 +32,4 @@ export function SubmitHandler({ isEditing, loading, error }: SubmitHandlerProps)
       </Button>
     </div>
   );
-} 
+}

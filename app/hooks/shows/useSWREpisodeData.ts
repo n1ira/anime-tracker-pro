@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
 import useSWR, { useSWRConfig } from 'swr';
 import { Episode } from './types';
 import { fetcher } from '@/lib/swr-config';
 
 // Key builder for SWR cache
-const getEpisodesKey = (showId?: number) => showId ? `/api/shows/${showId}/episodes` : null;
-const getEpisodeKey = (showId?: number, episodeId?: number) => 
-  (showId && episodeId) ? `/api/shows/${showId}/episodes/${episodeId}` : null;
+const getEpisodesKey = (showId?: number) => (showId ? `/api/shows/${showId}/episodes` : null);
+const getEpisodeKey = (showId?: number, episodeId?: number) =>
+  showId && episodeId ? `/api/shows/${showId}/episodes/${episodeId}` : null;
 
 /**
  * Hook for fetching episodes for a show with SWR caching
@@ -65,17 +65,17 @@ export function useEpisodeMutations(showId?: number) {
         },
         body: JSON.stringify(episodeData),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to update episode: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Revalidate both the individual episode and the episodes list
       mutate(getEpisodeKey(showId, episodeId));
       mutate(getEpisodesKey(showId));
-      
+
       return { success: true, data: data.data };
     } catch (err: any) {
       console.error('Error updating episode:', err);
@@ -84,7 +84,7 @@ export function useEpisodeMutations(showId?: number) {
   };
 
   // Update multiple episodes
-  const updateEpisodes = async (episodeUpdates: { id: number, data: Partial<Episode> }[]) => {
+  const updateEpisodes = async (episodeUpdates: { id: number; data: Partial<Episode> }[]) => {
     if (!showId) {
       return { success: false, error: 'Show ID is required' };
     }
@@ -95,12 +95,12 @@ export function useEpisodeMutations(showId?: number) {
       for (const { id, data } of episodeUpdates) {
         const result = await updateEpisode(id, data);
         results.push(result);
-        
+
         if (!result.success) {
           return { success: false, error: `Failed to update episode ${id}: ${result.error}` };
         }
       }
-      
+
       return { success: true, results };
     } catch (err: any) {
       console.error('Error updating episodes:', err);
@@ -112,4 +112,4 @@ export function useEpisodeMutations(showId?: number) {
     updateEpisode,
     updateEpisodes,
   };
-} 
+}

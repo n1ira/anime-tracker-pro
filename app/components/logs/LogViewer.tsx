@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLogStream } from '../../hooks/useLogStream';
@@ -6,7 +6,7 @@ import { ScrollArea } from '@/app/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/app/components/ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { LogFilterControls } from './LogFilterControls';
 import { LogEntry } from './LogEntry';
 
@@ -27,17 +27,27 @@ interface LogSummary {
 }
 
 export function LogViewer() {
-  const { logs, summaries, isConnected, error, isLoading, clearLogs, refreshLogs, isScanActive, checkScanningStatus } = useLogStream();
+  const {
+    logs,
+    summaries,
+    isConnected,
+    error,
+    isLoading,
+    clearLogs,
+    refreshLogs,
+    isScanActive,
+    checkScanningStatus,
+  } = useLogStream();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearLoading, setClearLoading] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("summary");
-  
+  const [activeTab, setActiveTab] = useState('summary');
+
   // References for scrolling
   const detailsContainerRef = useRef<HTMLDivElement>(null);
   const detailsBottomRef = useRef<HTMLDivElement>(null);
   const summaryTopRef = useRef<HTMLDivElement>(null);
-  
+
   // Sort logs in chronological order (oldest first)
   const sortedLogs = useMemo(() => {
     return [...logs].sort((a, b) => {
@@ -47,27 +57,27 @@ export function LogViewer() {
       return aTime - bTime;
     });
   }, [logs]);
-  
+
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
-    if (activeTab === "details" && detailsBottomRef.current) {
+    if (activeTab === 'details' && detailsBottomRef.current) {
       detailsBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs, activeTab]);
-  
+
   // Scroll to top of summary when switching to summary tab
   useEffect(() => {
-    if (activeTab === "summary" && summaryTopRef.current) {
+    if (activeTab === 'summary' && summaryTopRef.current) {
       summaryTopRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [activeTab]);
-  
+
   // Check scanning status periodically
   useEffect(() => {
     const interval = setInterval(() => {
       checkScanningStatus();
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [checkScanningStatus]);
 
@@ -98,15 +108,15 @@ export function LogViewer() {
     try {
       setClearLoading(true);
       setClearError(null);
-      
+
       const response = await fetch('/api/logs', {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to clear logs');
       }
-      
+
       // Refresh logs after clearing
       clearLogs();
       setClearDialogOpen(false);
@@ -148,14 +158,16 @@ export function LogViewer() {
                 Scan in progress
               </div>
             )}
-            <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <div
+              className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            ></div>
             <span className="text-xs text-muted-foreground">
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-0">
         <Tabs defaultValue="summary" value={activeTab} onValueChange={setActiveTab}>
           <div className="border-b px-4 py-2">
@@ -164,7 +176,7 @@ export function LogViewer() {
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
           </div>
-          
+
           <div className="p-4">
             <LogFilterControls
               onClearLogs={handleClearLogs}
@@ -173,7 +185,7 @@ export function LogViewer() {
               clearError={clearError}
               setClearDialogOpen={setClearDialogOpen}
             />
-            
+
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -181,7 +193,7 @@ export function LogViewer() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <TabsContent value="summary" className="mt-0">
               <div ref={summaryTopRef}></div>
               {isLoading ? (
@@ -195,10 +207,7 @@ export function LogViewer() {
               ) : (
                 <div className="space-y-4">
                   {summaries.map((summary, index) => (
-                    <div 
-                      key={index} 
-                      className={`p-4 rounded-md ${getStatusColor(summary.status)}`}
-                    >
+                    <div key={index} className={`p-4 rounded-md ${getStatusColor(summary.status)}`}>
                       <div className="flex justify-between items-center">
                         <div className="font-medium capitalize">{summary.status}</div>
                         <div className="text-sm">{formatTimestamp(summary.lastUpdated)}</div>
@@ -211,7 +220,7 @@ export function LogViewer() {
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="details" className="mt-0">
               <div ref={detailsContainerRef}>
                 <ScrollArea className="h-[500px] rounded-md border">
@@ -220,12 +229,10 @@ export function LogViewer() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : sortedLogs.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
-                      No logs available.
-                    </div>
+                    <div className="text-center text-muted-foreground py-8">No logs available.</div>
                   ) : (
                     <div>
-                      {sortedLogs.map((log) => (
+                      {sortedLogs.map(log => (
                         <LogEntry
                           key={log.id}
                           log={log}
@@ -244,4 +251,4 @@ export function LogViewer() {
       </CardContent>
     </Card>
   );
-} 
+}

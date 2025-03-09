@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Episode } from './types';
@@ -12,7 +12,7 @@ export function useEpisodeData(showId: number) {
   // Group episodes by season
   const episodesBySeason = useMemo(() => {
     const grouped: Record<number, Episode[]> = {};
-    
+
     episodes.forEach(episode => {
       const season = episode.season;
       if (!grouped[season]) {
@@ -20,12 +20,12 @@ export function useEpisodeData(showId: number) {
       }
       grouped[season].push(episode);
     });
-    
+
     // Sort episodes within each season
     Object.keys(grouped).forEach(season => {
       grouped[parseInt(season)].sort((a, b) => a.episode - b.episode);
     });
-    
+
     return grouped;
   }, [episodes]);
 
@@ -39,23 +39,23 @@ export function useEpisodeData(showId: number) {
   // Calculate watch progress for each season
   const seasonProgress = useMemo(() => {
     const progress: Record<number, { watched: number; total: number }> = {};
-    
+
     seasons.forEach(season => {
       const seasonEpisodes = episodesBySeason[season];
       const watched = seasonEpisodes.filter(ep => ep.isWatched).length;
       progress[season] = {
         watched,
-        total: seasonEpisodes.length
+        total: seasonEpisodes.length,
       };
     });
-    
+
     return progress;
   }, [seasons, episodesBySeason]);
 
   // Fetch episodes for a show
   const fetchEpisodes = useCallback(async () => {
     if (!showId) return;
-    
+
     setLoading(true);
     try {
       const response = await fetch(`/api/shows/${showId}/episodes`);
@@ -64,7 +64,7 @@ export function useEpisodeData(showId: number) {
       }
       const data = await response.json();
       setEpisodes(data.data || []);
-      
+
       // Initialize expanded seasons
       const episodeData: Episode[] = data.data || [];
       const seasons: number[] = [...new Set(episodeData.map(ep => ep.season))];
@@ -73,7 +73,7 @@ export function useEpisodeData(showId: number) {
         initialExpandedState[season] = true; // Default to expanded
       });
       setExpandedSeasons(initialExpandedState);
-      
+
       setError(null);
     } catch (err) {
       console.error('Error fetching episodes:', err);
@@ -84,41 +84,40 @@ export function useEpisodeData(showId: number) {
   }, [showId]);
 
   // Toggle episode watched status
-  const toggleEpisodeStatus = useCallback(async (episodeId: number, isWatched: boolean) => {
-    try {
-      const response = await fetch(`/api/shows/${showId}/episodes/${episodeId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isWatched }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to update episode: ${response.status} ${response.statusText}`);
+  const toggleEpisodeStatus = useCallback(
+    async (episodeId: number, isWatched: boolean) => {
+      try {
+        const response = await fetch(`/api/shows/${showId}/episodes/${episodeId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ isWatched }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to update episode: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // Update local state
+        setEpisodes(prev => prev.map(ep => (ep.id === episodeId ? { ...ep, isWatched } : ep)));
+
+        return { success: true, data: data.data };
+      } catch (err: any) {
+        console.error('Error updating episode:', err);
+        return { success: false, error: err.message || 'Failed to update episode' };
       }
-      
-      const data = await response.json();
-      
-      // Update local state
-      setEpisodes(prev => 
-        prev.map(ep => 
-          ep.id === episodeId ? { ...ep, isWatched } : ep
-        )
-      );
-      
-      return { success: true, data: data.data };
-    } catch (err: any) {
-      console.error('Error updating episode:', err);
-      return { success: false, error: err.message || 'Failed to update episode' };
-    }
-  }, [showId]);
+    },
+    [showId]
+  );
 
   // Toggle season collapse state
   const toggleSeasonCollapse = useCallback((season: number) => {
     setExpandedSeasons(prev => ({
       ...prev,
-      [season]: !prev[season]
+      [season]: !prev[season],
     }));
   }, []);
 
@@ -159,4 +158,4 @@ export function useEpisodeData(showId: number) {
     expandAllSeasons,
     collapseAllSeasons,
   };
-} 
+}

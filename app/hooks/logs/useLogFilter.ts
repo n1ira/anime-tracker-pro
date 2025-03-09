@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useCallback, useMemo } from 'react';
 import { Log, LogSummary } from './types';
@@ -16,7 +16,7 @@ export function useLogFilter(logs: Log[], summaries: LogSummary[]) {
     info: true,
     warning: true,
     error: true,
-    debug: true
+    debug: true,
   });
   const [showSummaryOnly, setShowSummaryOnly] = useState(false);
 
@@ -27,15 +27,15 @@ export function useLogFilter(logs: Log[], summaries: LogSummary[]) {
     return logs.filter(log => {
       // Check if log level is enabled in filter
       const level = log.level.toLowerCase();
-      const isLevelEnabled = 
+      const isLevelEnabled =
         (level === 'info' && levelFilter.info) ||
         (level === 'warning' && levelFilter.warning) ||
         (level === 'error' && levelFilter.error) ||
         (level === 'debug' && levelFilter.debug);
 
       // Check if log matches search term
-      const matchesSearch = searchTerm === '' || 
-        log.message.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        searchTerm === '' || log.message.toLowerCase().includes(searchTerm.toLowerCase());
 
       return isLevelEnabled && matchesSearch;
     });
@@ -44,12 +44,13 @@ export function useLogFilter(logs: Log[], summaries: LogSummary[]) {
   // Filter summaries based on search term
   const filteredSummaries = useMemo(() => {
     if (searchTerm === '') return summaries;
-    
-    return summaries.filter(summary =>
-      summary.show.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      summary.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      summary.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      summary.target.toLowerCase().includes(searchTerm.toLowerCase())
+
+    return summaries.filter(
+      summary =>
+        summary.show.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        summary.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        summary.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        summary.target.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [summaries, searchTerm]);
 
@@ -57,7 +58,7 @@ export function useLogFilter(logs: Log[], summaries: LogSummary[]) {
   const toggleLevelFilter = useCallback((level: keyof LogLevelFilter) => {
     setLevelFilter(prev => ({
       ...prev,
-      [level]: !prev[level]
+      [level]: !prev[level],
     }));
   }, []);
 
@@ -74,6 +75,6 @@ export function useLogFilter(logs: Log[], summaries: LogSummary[]) {
     showSummaryOnly,
     toggleSummaryOnly,
     filteredLogs,
-    filteredSummaries
+    filteredSummaries,
   };
-} 
+}

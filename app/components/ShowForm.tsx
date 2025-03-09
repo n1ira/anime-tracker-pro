@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/app/components/ui/card';
@@ -6,6 +6,7 @@ import { Button } from '@/app/components/ui/button';
 import { Loader2, Save, ArrowLeft, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/app/components/ui/badge';
+import { toast } from 'sonner';
 
 interface Show {
   id?: number;
@@ -45,11 +46,50 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   const [isEpisodesPerSeasonArray, setIsEpisodesPerSeasonArray] = useState(false);
   const router = useRouter();
 
+  const fetchShow = async () => {
+    setFetchLoading(true);
+    try {
+      const response = await fetch(`/api/shows/${showId}`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        const showData = data.data;
+        setShow({
+          id: showData.id,
+          title: showData.title || '',
+          alternateNames: showData.alternateNames || '[]',
+          episodesPerSeason: showData.episodesPerSeason || '',
+          startSeason: showData.startSeason || 1,
+          startEpisode: showData.startEpisode || 1,
+          endSeason: showData.endSeason || 1,
+          endEpisode: showData.endEpisode || 0,
+          quality: showData.quality || '1080p',
+          status: showData.status || 'watching',
+        });
+
+        // Check if episodesPerSeason is an array
+        try {
+          const eps = JSON.parse(showData.episodesPerSeason);
+          if (Array.isArray(eps)) {
+            setIsEpisodesPerSeasonArray(true);
+          }
+        } catch (e) {
+          // Not an array, it's a single number
+          setIsEpisodesPerSeasonArray(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching show:', error);
+      toast.error('Failed to load show data');
+    } finally {
+      setFetchLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isEditing && showId) {
       fetchShow();
     }
-  }, [isEditing, showId]);
+  }, [isEditing, showId, fetchShow]);
 
   useEffect(() => {
     // Parse alternateNames from JSON string when show changes
@@ -61,55 +101,9 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     }
   }, [show.alternateNames]);
 
-  const fetchShow = async () => {
-    setFetchLoading(true);
-    try {
-      const response = await fetch(`/api/shows/${showId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch show');
-      }
-      
-      const data = await response.json();
-      
-      // Handle episodesPerSeason format
-      if (data.episodesPerSeason) {
-        try {
-          const parsedEpisodes = JSON.parse(data.episodesPerSeason);
-          // If it's an array, set the array mode
-          if (Array.isArray(parsedEpisodes)) {
-            setIsEpisodesPerSeasonArray(true);
-            data.episodesPerSeason = parsedEpisodes.join(',');
-          } else {
-            setIsEpisodesPerSeasonArray(false);
-          }
-        } catch (e) {
-          // Not JSON, assume it's a single number as string
-          setIsEpisodesPerSeasonArray(false);
-        }
-      }
-      
-      // Parse alternate names
-      if (data.alternateNames) {
-        try {
-          const parsed = JSON.parse(data.alternateNames);
-          setAlternateNames(Array.isArray(parsed) ? parsed : []);
-        } catch (e) {
-          setAlternateNames([]);
-        }
-      }
-      
-      setShow(data);
-    } catch (error) {
-      console.error('Error fetching show:', error);
-      setError('Failed to fetch show. Please try again.');
-    } finally {
-      setFetchLoading(false);
-    }
-  };
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     // Handle episodesPerSeason field specially
     if (name === 'episodesPerSeason') {
       if (isEpisodesPerSeasonArray) {
@@ -125,7 +119,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       setShow(prev => ({
         ...prev,
         [name]: ['startSeason', 'startEpisode', 'endSeason', 'endEpisode'].includes(name)
-          ? parseInt(value) || 0 
+          ? parseInt(value) || 0
           : value,
       }));
     }
@@ -137,7 +131,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       setAlternateNames(updatedNames);
       setShow(prev => ({
         ...prev,
-        alternateNames: JSON.stringify(updatedNames)
+        alternateNames: JSON.stringify(updatedNames),
       }));
       setNewAlternateName('');
     }
@@ -148,7 +142,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
     setAlternateNames(updatedNames);
     setShow(prev => ({
       ...prev,
-      alternateNames: JSON.stringify(updatedNames)
+      alternateNames: JSON.stringify(updatedNames),
     }));
   };
 
@@ -159,15 +153,15 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
 
     try {
       // Format episodesPerSeason based on input type
-      let formattedShow = { ...show };
-      
+      const formattedShow = { ...show };
+
       if (isEpisodesPerSeasonArray) {
         // Parse comma-separated values into an array
         const episodesArray = show.episodesPerSeason
           .split(',')
           .map(val => parseInt(val.trim()))
           .filter(val => !isNaN(val));
-          
+
         if (episodesArray.length > 0) {
           // Store as JSON string
           formattedShow.episodesPerSeason = JSON.stringify(episodesArray);
@@ -194,7 +188,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       }
 
       const data = await response.json();
-      
+
       // For editing, use the existing showId for redirection
       // For creating, use the ID from the response
       if (isEditing && showId) {
@@ -221,7 +215,12 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center">
-        <Button variant="outline" size="sm" onClick={() => router.back()} className="hover:bg-primary/10">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.back()}
+          className="hover:bg-primary/10"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
@@ -233,8 +232,8 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
             {isEditing ? 'Edit Show' : 'Add New Show'}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isEditing 
-              ? 'Update the details for your anime show' 
+            {isEditing
+              ? 'Update the details for your anime show'
               : 'Fill in the details to add a new anime to your collection'}
           </p>
         </CardHeader>
@@ -246,7 +245,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2">
               <label htmlFor="title" className="text-sm font-medium">
                 Title
@@ -262,24 +261,22 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
               />
             </div>
-            
+
             <div className="space-y-3">
-              <label className="text-sm font-medium">
-                Alternate Names
-              </label>
+              <label className="text-sm font-medium">Alternate Names</label>
               <div className="flex flex-wrap gap-2 mb-2 min-h-8">
                 {alternateNames.length === 0 && (
                   <p className="text-sm text-muted-foreground italic">No alternate names added</p>
                 )}
                 {alternateNames.map((name, index) => (
-                  <Badge 
-                    key={index} 
+                  <Badge
+                    key={index}
                     variant="secondary"
                     className="flex items-center gap-1 px-2 py-1 rounded-md"
                   >
                     <span>{name}</span>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => removeAlternateName(index)}
                       className="text-muted-foreground/70 hover:text-destructive transition-colors"
                       aria-label={`Remove ${name}`}
@@ -293,12 +290,12 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 <input
                   type="text"
                   value={newAlternateName}
-                  onChange={(e) => setNewAlternateName(e.target.value)}
+                  onChange={e => setNewAlternateName(e.target.value)}
                   className="flex-1 p-2 rounded-l-md border border-input bg-background shadow-sm"
                   placeholder="Add alternate name"
                 />
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   onClick={addAlternateName}
                   className="rounded-l-none"
                   disabled={!newAlternateName.trim()}
@@ -307,7 +304,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-3 pt-1">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-medium">Episodes Per Season</label>
@@ -320,7 +317,9 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                       onChange={() => setIsEpisodesPerSeasonArray(false)}
                       className="mr-1"
                     />
-                    <label htmlFor="singleValue" className="text-xs cursor-pointer">Single value</label>
+                    <label htmlFor="singleValue" className="text-xs cursor-pointer">
+                      Single value
+                    </label>
                   </div>
                   <div className="flex items-center space-x-1">
                     <input
@@ -330,11 +329,13 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                       onChange={() => setIsEpisodesPerSeasonArray(true)}
                       className="mr-1"
                     />
-                    <label htmlFor="perSeason" className="text-xs cursor-pointer">Per season</label>
+                    <label htmlFor="perSeason" className="text-xs cursor-pointer">
+                      Per season
+                    </label>
                   </div>
                 </div>
               </div>
-              
+
               {!isEpisodesPerSeasonArray ? (
                 <input
                   id="episodesPerSeason"
@@ -357,21 +358,17 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                     className="w-full p-2 rounded-md border border-input bg-background shadow-sm"
                     placeholder="e.g. 12,13,24"
                   />
-                  <p className="text-xs text-muted-foreground flex items-start">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 mt-0.5">
-                      <polyline points="9 10 4 15 9 20"></polyline>
-                      <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
-                    </svg>
-                    Enter comma-separated values, one for each season (e.g., "12,13,24")
-                  </p>
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Enter the number of episodes per season. For example, if the show has 12
+                    episodes in season 1 and 24 in season 2, enter &quot;12,24&quot;. Leave empty
+                    for automatic calculation.
+                  </div>
                 </div>
               )}
             </div>
-            
+
             <div className="space-y-3 pt-1">
-              <label className="text-sm font-medium">
-                Episode Range
-              </label>
+              <label className="text-sm font-medium">Episode Range</label>
               <div className="grid sm:grid-cols-4 grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label htmlFor="startSeason" className="text-xs text-muted-foreground">
@@ -431,7 +428,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                 </div>
               </div>
             </div>
-            
+
             <div className="grid sm:grid-cols-2 gap-6 pt-1">
               <div className="space-y-2">
                 <label htmlFor="quality" className="text-sm font-medium">
@@ -449,7 +446,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
                   <option value="480p">480p</option>
                 </select>
               </div>
-              
+
               <div className="space-y-2">
                 <label htmlFor="status" className="text-sm font-medium">
                   Status
@@ -470,11 +467,7 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
           </CardContent>
           <div className="border-t border-border my-1" />
           <CardFooter className="pt-4 pb-4 flex justify-end">
-            <Button 
-              type="submit" 
-              disabled={loading} 
-              className="relative overflow-hidden group"
-            >
+            <Button type="submit" disabled={loading} className="relative overflow-hidden group">
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
@@ -488,4 +481,4 @@ export function ShowForm({ showId, isEditing = false }: ShowFormProps) {
       </Card>
     </div>
   );
-} 
+}

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext, ReactNode, useState, useEffect } from "react";
-import { toast } from "sonner";
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 // Define types
 export interface Show {
@@ -34,16 +34,16 @@ export function ShowsProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await fetch("/api/shows");
-      
+      const response = await fetch('/api/shows');
+
       if (!response.ok) {
         throw new Error(`Failed to fetch shows: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setShows(data);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch shows";
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch shows';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -72,7 +72,7 @@ export function ShowsProvider({ children }: { children: ReactNode }) {
 export function useShows() {
   const context = useContext(ShowsContext);
   if (context === undefined) {
-    throw new Error("useShows must be used within a ShowsProvider");
+    throw new Error('useShows must be used within a ShowsProvider');
   }
   return context;
-} 
+}

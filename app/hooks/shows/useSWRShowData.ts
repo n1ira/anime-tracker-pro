@@ -1,21 +1,20 @@
-"use client";
+'use client';
 
 import useSWR, { useSWRConfig } from 'swr';
 import { Show } from './types';
 import { fetcher } from '@/lib/swr-config';
 
 // Key builder for SWR cache
-const getShowKey = (id?: number) => id ? `/api/shows/${id}` : null;
+const getShowKey = (id?: number) => (id ? `/api/shows/${id}` : null);
 const getShowsKey = () => `/api/shows`;
 
 /**
  * Hook for fetching a single show with SWR caching
  */
 export function useSWRShow(id?: number) {
-  const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: Show }>(
-    getShowKey(id),
-    { revalidateOnFocus: false }
-  );
+  const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: Show }>(getShowKey(id), {
+    revalidateOnFocus: false,
+  });
 
   return {
     show: data?.data || null,
@@ -30,10 +29,9 @@ export function useSWRShow(id?: number) {
  * Hook for fetching all shows with SWR caching
  */
 export function useSWRShows() {
-  const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: Show[] }>(
-    getShowsKey(),
-    { revalidateOnFocus: false }
-  );
+  const { data, error, isLoading, isValidating, mutate } = useSWR<{ data: Show[] }>(getShowsKey(), {
+    revalidateOnFocus: false,
+  });
 
   return {
     shows: data?.data || [],
@@ -60,16 +58,16 @@ export function useShowMutations() {
         },
         body: JSON.stringify(showData),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to create show: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Revalidate the shows list
       mutate(getShowsKey());
-      
+
       return { success: true, data: data.data };
     } catch (err: any) {
       console.error('Error creating show:', err);
@@ -87,17 +85,17 @@ export function useShowMutations() {
         },
         body: JSON.stringify(showData),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to update show: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       // Revalidate both the individual show and the shows list
       mutate(getShowKey(id));
       mutate(getShowsKey());
-      
+
       return { success: true, data: data.data };
     } catch (err: any) {
       console.error('Error updating show:', err);
@@ -111,14 +109,14 @@ export function useShowMutations() {
       const response = await fetch(`/api/shows/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to delete show: ${response.status} ${response.statusText}`);
       }
-      
+
       // Revalidate the shows list
       mutate(getShowsKey());
-      
+
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting show:', err);
@@ -131,4 +129,4 @@ export function useShowMutations() {
     updateShow,
     deleteShow,
   };
-} 
+}

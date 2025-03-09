@@ -23,4 +23,4 @@ export function SeasonBreakdown({ episodesPerSeasonValue }: SeasonBreakdownProps
       </div>
     </div>
   );
-} 
+}

@@ -24,7 +24,7 @@ export function validateShowForm({
   show,
   isEpisodesPerSeasonArray,
   alternateNames,
-  setError
+  setError,
 }: ValidationLogicProps): boolean {
   // Validate title
   if (!show.title.trim()) {
@@ -42,7 +42,7 @@ export function validateShowForm({
         }
         return parsed;
       });
-      
+
       if (episodesArray.length === 0) {
         setError('At least one episode count is required');
         return false;
@@ -60,7 +60,12 @@ export function validateShowForm({
   }
 
   // Validate seasons and episodes
-  if (show.startSeason <= 0 || show.startEpisode <= 0 || show.endSeason <= 0 || show.endEpisode <= 0) {
+  if (
+    show.startSeason <= 0 ||
+    show.startEpisode <= 0 ||
+    show.endSeason <= 0 ||
+    show.endEpisode <= 0
+  ) {
     setError('Season and episode numbers must be positive');
     return false;
   }
@@ -78,4 +83,4 @@ export function validateShowForm({
   // All validations passed
   setError(null);
   return true;
-} 
+}

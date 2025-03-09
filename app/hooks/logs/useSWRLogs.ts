@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import useSWR from 'swr';
 import { useState, useCallback } from 'react';
@@ -43,7 +43,7 @@ export function useSWRLogs(initialPage = 1, initialPageSize = 50) {
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<LogsResponse>(
     getLogsKey(page, pageSize, level, showId),
-    { 
+    {
       revalidateOnFocus: false,
       dedupingInterval: 5000, // Dedupe requests with the same key in this time span
     }
@@ -101,4 +101,4 @@ export function useSWRLogs(initialPage = 1, initialPageSize = 50) {
     clearFilters,
     refreshLogs,
   };
-} 
+}

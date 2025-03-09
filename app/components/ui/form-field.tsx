@@ -1,6 +1,6 @@
-import React from "react";
-import { Input } from "./input";
-import { Label } from "./label";
+import React from 'react';
+import { Input } from './input';
+import { Label } from './label';
 
 interface FormFieldProps {
   id: string;
@@ -18,14 +18,14 @@ interface FormFieldProps {
 export function FormField({
   id,
   label,
-  type = "text",
+  type = 'text',
   placeholder,
   value,
   onChange,
   error,
   required = false,
   disabled = false,
-  className = "",
+  className = '',
 }: FormFieldProps) {
   return (
     <div className={`space-y-2 ${className}`}>
@@ -44,8 +44,8 @@ export function FormField({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className={error ? "border-destructive" : ""}
+        className={error ? 'border-destructive' : ''}
       />
     </div>
   );
-} 
+}

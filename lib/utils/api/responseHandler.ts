@@ -15,50 +15,71 @@ export type ApiResponse<T = any> = {
 /**
  * Creates a successful API response
  */
-export function successResponse<T>(data: T, message?: string, statusCode: number = 200): NextResponse<ApiResponse<T>> {
-  return NextResponse.json({
-    success: true,
-    data,
-    message,
-    statusCode
-  }, { status: statusCode });
+export function successResponse<T>(
+  data: T,
+  message?: string,
+  statusCode: number = 200
+): NextResponse<ApiResponse<T>> {
+  return NextResponse.json(
+    {
+      success: true,
+      data,
+      message,
+      statusCode,
+    },
+    { status: statusCode }
+  );
 }
 
 /**
  * Creates an error API response
  */
-export function errorResponse(error: string | Error, statusCode: number = 500): NextResponse<ApiResponse> {
+export function errorResponse(
+  error: string | Error,
+  statusCode: number = 500
+): NextResponse<ApiResponse> {
   const errorMessage = error instanceof Error ? error.message : error;
-  
-  return NextResponse.json({
-    success: false,
-    error: errorMessage,
-    statusCode
-  }, { status: statusCode });
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: errorMessage,
+      statusCode,
+    },
+    { status: statusCode }
+  );
 }
 
 /**
  * Handles API errors and returns a formatted response
  */
-export async function handleApiError(error: unknown, customMessage?: string): Promise<NextResponse<ApiResponse>> {
+export async function handleApiError(
+  error: unknown,
+  customMessage?: string
+): Promise<NextResponse<ApiResponse>> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const message = customMessage || 'An error occurred while processing your request';
-  
+
   await logError(`API Error: ${message} - ${errorMessage}`);
-  
+
   return errorResponse(message, 500);
 }
 
 /**
  * Validates required parameters in a request
  */
-export function validateParams(params: Record<string, any>, requiredParams: string[]): { valid: boolean; missing?: string[] } {
-  const missing = requiredParams.filter(param => params[param] === undefined || params[param] === null);
-  
+export function validateParams(
+  params: Record<string, any>,
+  requiredParams: string[]
+): { valid: boolean; missing?: string[] } {
+  const missing = requiredParams.filter(
+    param => params[param] === undefined || params[param] === null
+  );
+
   if (missing.length > 0) {
     return { valid: false, missing };
   }
-  
+
   return { valid: true };
 }
 
@@ -92,4 +113,4 @@ export function notFoundResponse(resource: string): NextResponse {
  */
 export function badRequestResponse(message: string): NextResponse {
   return errorResponse(message, 400);
-} 
+}

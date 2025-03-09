@@ -13,7 +13,7 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
   showId,
   showTitle,
   initialEpisodesPerSeason,
-  onUpdate
+  onUpdate,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [episodesPerSeasonValue, setEpisodesPerSeasonValue] = useState('');
@@ -48,7 +48,7 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
   const handleSubmit = async () => {
     try {
       let episodesPerSeason;
-      
+
       if (isArray) {
         // Parse comma-separated values into an array of numbers
         episodesPerSeason = episodesPerSeasonValue
@@ -74,10 +74,10 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
       }
 
       // Format the value for display
-      const formattedValue = isArray 
-        ? JSON.stringify(episodesPerSeason) 
+      const formattedValue = isArray
+        ? JSON.stringify(episodesPerSeason)
         : episodesPerSeason.toString();
-      
+
       onUpdate(formattedValue);
       alert(`Episodes per season updated for ${showTitle}`);
       setIsModalOpen(false);
@@ -102,9 +102,10 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
     } else {
       // Converting from array to single number
       try {
-        const average = episodesArray.length > 0 
-          ? Math.round(episodesArray.reduce((a, b) => a + b, 0) / episodesArray.length)
-          : 12;
+        const average =
+          episodesArray.length > 0
+            ? Math.round(episodesArray.reduce((a, b) => a + b, 0) / episodesArray.length)
+            : 12;
         setEpisodesPerSeasonValue(average.toString());
       } catch (e) {
         setEpisodesPerSeasonValue('12');
@@ -115,7 +116,12 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
   // Simple modal implementation with CSS
   if (!isModalOpen) {
     return (
-      <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setIsModalOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1"
+        onClick={() => setIsModalOpen(true)}
+      >
         <Edit className="h-3.5 w-3.5" />
         <span className="sr-only md:not-sr-only">Edit</span>
       </Button>
@@ -127,36 +133,33 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Edit Episodes Per Season - {showTitle}</h2>
-          <button 
-            onClick={handleCancel}
-            className="text-gray-500 hover:text-gray-700"
-          >
+          <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700">
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         <div className="mb-4">
           <p className="text-sm text-gray-500 mb-2">
-            {isArray 
-              ? "Enter the number of episodes for each season, separated by commas. The first number is for Season 1, etc."
-              : "Enter a single number to use for all seasons"}
+            {isArray
+              ? 'Enter the number of episodes for each season, separated by commas. The first number is for Season 1, etc.'
+              : 'Enter a single number to use for all seasons'}
           </p>
-          
+
           <label className="block text-sm font-medium mb-1">
-            {isArray 
+            {isArray
               ? "Episodes per season (comma-separated list, e.g. '12, 13, 24')"
-              : "Episodes per season (default: 12)"}
+              : 'Episodes per season (default: 12)'}
           </label>
-          
+
           <input
             type="text"
             value={episodesPerSeasonValue}
-            onChange={(e) => setEpisodesPerSeasonValue(e.target.value)}
-            placeholder={isArray ? "12, 13, 24" : "12"}
+            onChange={e => setEpisodesPerSeasonValue(e.target.value)}
+            placeholder={isArray ? '12, 13, 24' : '12'}
             className="w-full p-2 border rounded-md"
           />
         </div>
-        
+
         {isArray && (
           <div className="mb-4">
             <h4 className="font-medium mb-2">Season Breakdown:</h4>
@@ -175,7 +178,7 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
             </div>
           </div>
         )}
-        
+
         <div className="flex justify-between">
           <button
             onClick={toggleMode}
@@ -183,7 +186,7 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
           >
             {isArray ? 'Use Single Value' : 'Use Array (Multiple Seasons)'}
           </button>
-          
+
           <div className="space-x-2">
             <button
               onClick={handleCancel}
@@ -204,4 +207,4 @@ const EpisodesPerSeasonEditor: React.FC<EpisodesPerSeasonEditorProps> = ({
   );
 };
 
-export default EpisodesPerSeasonEditor; 
+export default EpisodesPerSeasonEditor;

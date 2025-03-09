@@ -29,7 +29,7 @@ export function SeasonEpisodeList({
   onToggleSeason,
   onToggleEpisode,
   loading,
-  episodeLoading
+  episodeLoading,
 }: SeasonEpisodeListProps) {
   // Sort seasons in ascending order
   const sortedSeasons = Object.keys(episodesBySeason)
@@ -38,13 +38,13 @@ export function SeasonEpisodeList({
 
   return (
     <div className="space-y-4">
-      {sortedSeasons.map((season) => {
+      {sortedSeasons.map(season => {
         const episodes = episodesBySeason[season];
         const isExpanded = expandedSeasons[season] || false;
-        
+
         return (
           <Card key={season} className="shadow-sm">
-            <div 
+            <div
               className="flex items-center justify-between p-4 cursor-pointer border-b"
               onClick={() => onToggleSeason(season)}
             >
@@ -59,10 +59,10 @@ export function SeasonEpisodeList({
                   ({episodes.filter(e => e.isDownloaded).length}/{episodes.length} episodes)
                 </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={(e) => {
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={e => {
                   e.stopPropagation();
                   onToggleSeason(season);
                 }}
@@ -70,14 +70,14 @@ export function SeasonEpisodeList({
                 {isExpanded ? 'Collapse' : 'Expand'}
               </Button>
             </div>
-            
+
             {isExpanded && (
               <CardContent className="pt-4">
                 <div className="space-y-2">
                   {episodes
                     .sort((a, b) => (a.episodeInSeason || 0) - (b.episodeInSeason || 0))
-                    .map((episode) => (
-                      <EpisodeItem 
+                    .map(episode => (
+                      <EpisodeItem
                         key={episode.id}
                         episode={episode}
                         onToggle={onToggleEpisode}
@@ -93,4 +93,4 @@ export function SeasonEpisodeList({
       })}
     </div>
   );
-} 
+}

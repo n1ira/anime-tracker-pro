@@ -15,15 +15,8 @@ export const CACHE_DURATIONS = {
  * @param cacheDuration - Cache duration in seconds (default: no caching)
  * @returns NextResponse with cache headers
  */
-export function createCachedResponse(
-  data: any,
-  status = 200,
-  cacheDuration?: number
-) {
-  const response = NextResponse.json(
-    { success: true, data },
-    { status }
-  );
+export function createCachedResponse(data: any, status = 200, cacheDuration?: number) {
+  const response = NextResponse.json({ success: true, data }, { status });
 
   if (cacheDuration) {
     // Set cache control headers
@@ -48,10 +41,7 @@ export function createCachedResponse(
  * @returns NextResponse with no-cache headers
  */
 export function createErrorResponse(message: string, status = 500) {
-  const response = NextResponse.json(
-    { success: false, error: message },
-    { status }
-  );
+  const response = NextResponse.json({ success: false, error: message }, { status });
 
   // Error responses should never be cached
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -59,4 +49,4 @@ export function createErrorResponse(message: string, status = 500) {
   response.headers.set('Expires', '0');
 
   return response;
-} 
+}

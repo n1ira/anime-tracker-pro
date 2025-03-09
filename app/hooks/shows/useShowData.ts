@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { Show } from './types';
@@ -57,11 +57,11 @@ export function useShowData(showId?: number) {
         },
         body: JSON.stringify(showData),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to create show: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       return { success: true, data: data.data };
     } catch (err: any) {
@@ -80,11 +80,11 @@ export function useShowData(showId?: number) {
         },
         body: JSON.stringify(showData),
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to update show: ${response.status} ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       return { success: true, data: data.data };
     } catch (err: any) {
@@ -99,11 +99,11 @@ export function useShowData(showId?: number) {
       const response = await fetch(`/api/shows/${id}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to delete show: ${response.status} ${response.statusText}`);
       }
-      
+
       return { success: true };
     } catch (err: any) {
       console.error('Error deleting show:', err);
@@ -131,4 +131,4 @@ export function useShowData(showId?: number) {
     updateShow,
     deleteShow,
   };
-} 
+}
